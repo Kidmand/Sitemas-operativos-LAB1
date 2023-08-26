@@ -8,18 +8,21 @@
 #include "parsing.h"
 #include "builtin.h"
 
-static void show_prompt(void) {
-    printf ("mybash> ");
-    fflush (stdout);
+static void show_prompt(void)
+{
+    printf("mybash> ");
+    fflush(stdout);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     pipeline pipe;
     Parser input;
     bool quit = false;
 
     input = parser_new(stdin);
-    while (!quit) {
+    while (!quit)
+    {
         show_prompt();
         pipe = parse_pipeline(input);
 
@@ -30,7 +33,7 @@ int main(int argc, char *argv[]) {
          *
          */
     }
-    parser_destroy(input); input = NULL;
+    parser_destroy(input);
+    input = NULL;
     return EXIT_SUCCESS;
 }
-
