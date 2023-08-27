@@ -2,4 +2,5 @@ mybash.o
 parsing.o
 strextra.o
 
+.vscode
 .depend
