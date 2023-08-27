@@ -47,7 +47,7 @@ void scommand_push_back(scommand self, char *argument)
     return 0;
 }
 
-void scommand_pop_front(scommand self);
+void scommand_pop_front(scommand self)
 {
     return 0;
 }
