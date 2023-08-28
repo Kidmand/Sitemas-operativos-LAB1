@@ -4,7 +4,7 @@ CFLAGS=-std=gnu11 -Wall -Wextra -Wbad-function-cast -Wstrict-prototypes -Wmissin
 LDFLAGS=`pkg-config --libs glib-2.0`
 
 test_command: 
-	$(CC) ./test_command.c $(CFLAGS) ../command.c -o test_command.out $(CPPFLAGS) $(LDFLAGS) && ./test_command.out
+	$(CC) ./test_command.c $(CFLAGS) ../command.c ../strextra.c -o test_command.out $(CPPFLAGS) $(LDFLAGS) && ./test_command.out
 	
 test_command_valgrind: $(test_command)
 	valgrind ./test_command.out --leak-check=full -s
