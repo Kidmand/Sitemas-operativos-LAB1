@@ -5,9 +5,9 @@
 
 #include "../command.h"
 
-int main(int argc, char *argv[])
+static void comando_simples(void)
 {
-    printf("Esto es un test de command.c\n");
+    printf("Esto es un test de comando simples.\n");
     scommand comand = scommand_new();
     printf("Es vacia : %d - El tamaño es: %u \n", scommand_is_empty(comand), scommand_length(comand));
     scommand_push_back(comand, strdup("ls"));
@@ -31,5 +31,52 @@ int main(int argc, char *argv[])
     free(string_comand);
 
     comand = scommand_destroy(comand);
+}
+
+static void test_pipeline(void)
+{
+    printf("Esto es un test de pipeline.\n");
+
+    pipeline new_p = pipeline_new();
+    scommand new_c = scommand_new();
+    scommand_push_back(new_c, strdup("ls"));
+    scommand_push_back(new_c, strdup("-l"));
+    scommand_set_redir_in(new_c, strdup("./in"));
+    scommand_set_redir_out(new_c, strdup("./out"));
+
+    scommand new_c2 = scommand_new();
+    scommand_push_back(new_c2, strdup("ls"));
+    scommand_push_back(new_c2, strdup("-l"));
+    scommand_set_redir_in(new_c2, strdup("./in"));
+    scommand_set_redir_out(new_c2, strdup("./out"));
+
+    pipeline_push_back(new_p, new_c);
+    pipeline_push_back(new_p, new_c2);
+
+    printf("Tiene %d elementos \n", pipeline_length(new_p));
+    pipeline_pop_front(new_p);
+    printf("Tiene %d elementos \n", pipeline_length(new_p));
+
+    pipeline_set_wait(new_p, false);
+    printf("El estado de wait es: %d \n", pipeline_get_wait(new_p));
+
+    scommand get_comand = pipeline_front(new_p);
+    char *string_comand = scommand_to_string(get_comand);
+    printf("El comando completo es : %s \n", string_comand);
+    free(string_comand);
+
+    char *string_pipline = pipeline_to_string(new_p);
+    printf("El pipline completo es : %s \n", string_pipline);
+    free(string_pipline);
+
+    new_p = pipeline_destroy(new_p);
+}
+int main(int argc, char *argv[])
+{
+    comando_simples();
+
+    printf("\n\n");
+
+    test_pipeline();
     return EXIT_SUCCESS;
 }
