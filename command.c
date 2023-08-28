@@ -150,29 +150,29 @@ char *scommand_get_redir_out(const scommand self)
     return self->redir_out;
 }
 
-/*ESTO TIENE MEMORY LEEKS, PORQUE strmerge GENERA NUEVA MEMORIA*/
 char *scommand_to_string(const scommand self)
 {
     assert(self != NULL);
+    char *result = strdup("");
     GList *aux_list = self->args;
-    char *result = strdup(""), *aux;
+
     while (aux_list != NULL)
     {
-        result = strmerge(result, g_list_nth_data(aux_list, 0));
-        result = strmerge(result, " ");
+        result = strconcat(result, g_list_nth_data(aux_list, 0));
+        result = strconcat(result, " ");
         aux_list = g_list_next(aux_list);
     }
 
     if (self->redir_out != NULL)
     {
-        result = strmerge(result, " > ");
-        result = strmerge(result, self->redir_out);
+        result = strconcat(result, " > ");
+        result = strconcat(result, self->redir_out);
     }
 
     if (self->redir_in != NULL)
     {
-        result = strmerge(result, " < ");
-        result = strmerge(result, self->redir_in);
+        result = strconcat(result, " < ");
+        result = strconcat(result, self->redir_in);
     }
 
     assert(scommand_is_empty(self) ||
