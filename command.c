@@ -47,10 +47,9 @@ scommand scommand_new(void)
     result->redir_in = NULL;
     result->redir_out = NULL;
 
-    assert(result != NULL && scommand_is_empty(result) /*&&
+    assert(result != NULL && scommand_is_empty(result) &&
            scommand_get_redir_in(result) == NULL &&
-           scommand_get_redir_out(result) == NULL */
-    );
+           scommand_get_redir_out(result) == NULL);
 
     return result;
 }
@@ -188,64 +187,136 @@ char *scommand_to_string(const scommand self)
 /* Estructura de un comando con pipeline.
  * Es un 2-upla del tipo ([scommand], bool)
  */
-/*
+
 struct pipeline_s
 {
-    GSList *scmds;
+    GList *cmds;
     bool wait;
 };
 
 pipeline pipeline_new(void)
 {
-    return 0;
+    pipeline result = malloc(sizeof(struct pipeline_s));
+    if (result == NULL)
+    {
+        perror("Error al alojar memoria (malloc)");
+        exit(EXIT_FAILURE);
+    }
+    result->cmds = NULL;
+    result->wait = true;
+
+    assert(result != NULL && pipeline_is_empty(result) &&
+           pipeline_get_wait(result));
+
+    return result;
+}
+
+static void void_scommand_destroy(void *self)
+{
+    scommand killme = self;
+    scommand_destroy(killme);
 }
 
 pipeline pipeline_destroy(pipeline self)
 {
-    return 0;
+    assert(self != NULL);
+    g_list_free_full(self->cmds, void_scommand_destroy);
+    self->cmds = NULL;
+
+    free(self);
+    self = NULL;
+
+    assert(self == NULL);
+    return self;
 }
-*/
+
 /* Modificadores */
-/*
+
 void pipeline_push_back(pipeline self, scommand sc)
 {
-    return 0;
+    assert(self != NULL && sc != NULL);
+
+    self->cmds = g_list_append(self->cmds, sc);
+
+    assert(!pipeline_is_empty(self));
 }
 
 void pipeline_pop_front(pipeline self)
 {
-    return 0;
+    assert(self != NULL && !pipeline_is_empty(self));
+
+    gpointer first_element = g_list_nth_data(self->cmds, 0);
+
+    self->cmds = g_list_remove(self->cmds, first_element);
+
+    scommand_destroy(first_element);
+    first_element = NULL;
 }
 
 void pipeline_set_wait(pipeline self, const bool w)
 {
-    return 0;
+    assert(self != NULL);
+    self->wait = w;
 }
-*/
+
 /* Proyectores */
-/*
+
 bool pipeline_is_empty(const pipeline self)
 {
-    return 0;
+    assert(self != NULL);
+    return self->cmds == NULL;
 }
 
 unsigned int pipeline_length(const pipeline self)
 {
-    return 0;
+    assert(self != NULL);
+    unsigned int length = 0;
+
+    if (self->cmds != NULL)
+        length = g_list_length(self->cmds);
+
+    assert((length == 0) == pipeline_is_empty(self));
+    return length;
 }
 
 scommand pipeline_front(const pipeline self)
 {
-    return 0;
+    assert(self != NULL && !pipeline_is_empty(self));
+
+    scommand res = g_list_nth_data(self->cmds, 0);
+
+    assert(res != NULL);
+    return res;
 }
 
 bool pipeline_get_wait(const pipeline self)
 {
-    return 0;
+    assert(self != NULL);
+    return self->wait;
 }
 
 char *pipeline_to_string(const pipeline self)
 {
-    return 0;
+    assert(self != NULL);
+    char *result = strdup(""), *aux = NULL;
+    GList *aux_list = self->cmds;
+    scommand aux_command = NULL;
+
+    while (aux_list != NULL)
+    {
+        aux_command = g_list_nth_data(aux_list, 0);
+        aux = scommand_to_string(aux_command);
+        result = strconcat(result, aux);
+        free(aux);
+        aux_list = g_list_next(aux_list);
+        if (aux_list != NULL)
+            result = strconcat(result, " | ");
+    }
+
+    if (!self->wait)
+        result = strconcat(result, " & ");
+
+    assert(pipeline_is_empty(self) || pipeline_get_wait(self) || strlen(result) > 0);
+
+    return result;
 }
-*/
