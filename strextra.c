@@ -1,6 +1,7 @@
 #include <stdlib.h>   /* calloc()...                        */
 #include <string.h>   /* strlen(), strncat, strcopy()...    */
 #include <assert.h>   /* assert()...                        */
+#include <stdio.h>    /* perror()...                        */
 #include "strextra.h" /* Interfaz                           */
 
 char *strmerge(char *s1, char *s2)
@@ -14,4 +15,14 @@ char *strmerge(char *s1, char *s2)
     merge = strncat(merge, s2, len_s2);
     assert(merge != NULL && strlen(merge) == strlen(s1) + strlen(s2));
     return merge;
+}
+
+char *strconcat(char *s1, char *s2)
+{
+    assert(s1 != NULL && s2 != NULL); // Verificamos que ambas cadenas sean válidas
+
+    char *concatenated = strmerge(s1, s2); // Asignamos memoria suficiente
+    free(s1);
+
+    return concatenated;
 }
