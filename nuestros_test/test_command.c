@@ -25,7 +25,10 @@ int main(int argc, char *argv[])
     scommand_push_back(comand, strdup("ls"));
     scommand_push_back(comand, strdup("-l"));
     scommand_push_back(comand, strdup("xd"));
-    printf("El comando completo es : %s \n", scommand_to_string(comand));
+    char *string_comand = scommand_to_string(comand);
+    printf("El comando completo es : %s \n", string_comand);
+
+    free(string_comand);
 
     comand = scommand_destroy(comand);
     return EXIT_SUCCESS;
