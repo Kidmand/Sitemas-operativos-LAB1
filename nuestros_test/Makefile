@@ -1,0 +1,10 @@
+CC=gcc
+CPPFLAGS=`pkg-config --cflags glib-2.0`
+CFLAGS=-std=gnu11 -Wall -Wextra -Wbad-function-cast -Wstrict-prototypes -Wmissing-declarations -Wmissing-prototypes -Wno-unused-parameter -Werror -Werror=vla -g -pedantic
+LDFLAGS=`pkg-config --libs glib-2.0`
+
+test_command: 
+	$(CC) ./test_command.c $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o test_command.out && ./test_command.out
+
+clean: 
+	rm *.out
