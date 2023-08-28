@@ -1,9 +1,23 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <glib.h> //Documentacion de LISTAS = https://docs.gtk.org/glib/struct.List.html
 
 #include "command.h"
+
+/* ------- Funciones auxiliares ------*/
+
+static void show_list(GSList *list)
+{
+    assert(list != NULL);
+    GSList *current = list;
+    while (current != NULL)
+    {
+        printf("%s\n", (char *)current->data);
+        current = g_slist_next(current);
+    }
+}
 
 /* ----------  COMANDO SIMPLE ---------- */
 
@@ -29,24 +43,44 @@ scommand scommand_new(void)
     result->redir_in = NULL;
     result->redir_out = NULL;
 
-    assert(result != NULL && scommand_is_empty(result) &&
-           scommand_get_redir_in(result) == NULL &&
-           scommand_get_redir_out(result) == NULL);
-
+    /*
+        assert(result != NULL && scommand_is_empty(result) &&
+               scommand_get_redir_in(result) == NULL &&
+               scommand_get_redir_out(result) == NULL);
+    */
     return result;
 }
 
 scommand scommand_destroy(scommand self)
 {
+    assert(self != NULL);
+    g_slist_free_full(self->args, free);
+    free(self->redir_in);
+    free(self->redir_out);
+
+    self->args = NULL;
+    self->redir_in = NULL;
+    self->redir_out = NULL;
+
+    free(self);
+    self = NULL;
+
+    assert(self == NULL);
+    return self;
 }
 
 /* Modificadores */
 
 void scommand_push_back(scommand self, char *argument)
 {
-    return 0;
-}
+    assert(self != NULL && argument != NULL);
 
+    self->args = g_slist_append(self->args, argument);
+
+    show_list(self->args);
+    // assert(!scommand_is_empty());
+}
+/*
 void scommand_pop_front(scommand self)
 {
     return 0;
@@ -59,9 +93,9 @@ void scommand_set_redir_out(scommand self, char *filename)
 {
     return 0;
 }
-
+*/
 /* Proyectores */
-
+/*
 bool scommand_is_empty(const scommand self)
 {
     return 0;
@@ -90,12 +124,13 @@ char *scommand_to_string(const scommand self)
 {
     return 0;
 }
-
+*/
 /* ---------- COMANDO PIPELINE ---------- */
 
 /* Estructura de un comando con pipeline.
  * Es un 2-upla del tipo ([scommand], bool)
  */
+/*
 struct pipeline_s
 {
     GSList *scmds;
@@ -111,9 +146,9 @@ pipeline pipeline_destroy(pipeline self)
 {
     return 0;
 }
-
+*/
 /* Modificadores */
-
+/*
 void pipeline_push_back(pipeline self, scommand sc)
 {
     return 0;
@@ -128,9 +163,9 @@ void pipeline_set_wait(pipeline self, const bool w)
 {
     return 0;
 }
-
+*/
 /* Proyectores */
-
+/*
 bool pipeline_is_empty(const pipeline self)
 {
     return 0;
@@ -155,3 +190,4 @@ char *pipeline_to_string(const pipeline self)
 {
     return 0;
 }
+*/
