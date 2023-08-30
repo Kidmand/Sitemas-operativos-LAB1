@@ -6,15 +6,18 @@
 
 static const char *internal_commands[] = {"cd", "echo", "exit"};
 
-static unsigned int internal_length(const char *internal_commands){
+static unsigned int internal_length(const char *internal_commands)
+{
     unsigned int length = 0;
-    while (internal_commands[length] != NULL) {
+    while (internal_commands[length] != NULL)
+    {
         length++;
     }
     return length;
 }
 
-static bool is_internal(char *comando){
+static bool is_internal(char *comando)
+{
     bool b = false;
 
     unsigned int length = internal_length(internal_commands);
@@ -26,17 +29,18 @@ static bool is_internal(char *comando){
             b = true;
             i = length;
         }
-    }   
+    }
 }
 
-bool builtin_is_internal(scommand cmd){
+bool builtin_is_internal(scommand cmd)
+{
 
     char *comando = !scommand_is_empty(cmd) ? scommand_front(cmd) : NULL;
 
     return is_internal(comando);
 }
 
-bool builtin_alone(pipeline p){}
+bool builtin_alone(pipeline p) {}
 /*
  * Indica si el pipeline tiene solo un elemento y si este se corresponde a un
  * comando interno.
@@ -51,7 +55,7 @@ bool builtin_alone(pipeline p){}
  *
  */
 
-void builtin_run(scommand cmd){}
+void builtin_run(scommand cmd) {}
 /*
  * Ejecuta un comando interno
  *

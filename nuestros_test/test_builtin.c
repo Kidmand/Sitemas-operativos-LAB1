@@ -12,13 +12,13 @@ int main(int argc, char *argv[])
     scommand_push_back(comand, strdup("ls"));
 
     bool b = builtin_is_internal(comand);
-    printf("%s es un comando interno: %d \n",scommand_front(comand), b);
+    printf("%s es un comando interno: %d \n", scommand_front(comand), b);
 
     scommand_pop_front(comand);
     scommand_push_back(comand, strdup("echo"));
 
     b = builtin_is_internal(comand);
-    printf("%s es un comando interno: %d \n",scommand_front(comand), b);
+    printf("%s es un comando interno: %d \n", scommand_front(comand), b);
 
     return EXIT_SUCCESS;
 }
