@@ -1,10 +1,34 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <string.h>
 
 #include "parsing.h"
 #include "parser.h"
 #include "command.h"
+
+static void removeNewlines(char *str)
+{
+    char *src = str;
+    char *dst = str;
+
+    while (*src)
+    {
+        if (!(*src == '\\' && *(src + 1) == 'n'))
+        {
+            *dst = *src;
+            dst++;
+        }
+        else
+        {
+            src++; // Saltar el segundo caracter '\n'
+        }
+
+        src++;
+    }
+
+    *dst = '\0';
+}
 
 static scommand parse_scommand(Parser p)
 {
@@ -22,8 +46,13 @@ static scommand parse_scommand(Parser p)
             finish_cmd = true;
             free(arg);
         }
+        else if (strcmp(arg, "\\n") == 0)
+        {
+            arg = parser_next_argument(p, &arg_type);
+        }
         else
         {
+            removeNewlines(arg);
             switch (arg_type)
             {
             case ARG_NORMAL:
@@ -61,7 +90,7 @@ pipeline parse_pipeline(Parser p)
     // Seteo si se ejecuta en background o foreground
     bool was_op_background;
     parser_op_background(p, &was_op_background);
-    pipeline_set_wait(result, was_op_background);
+    pipeline_set_wait(result, !was_op_background);
 
     bool garbage;
     parser_garbage(p, &garbage);
