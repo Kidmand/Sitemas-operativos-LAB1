@@ -310,11 +310,11 @@ char *pipeline_to_string(const pipeline self)
         free(aux);
         aux_list = g_list_next(aux_list);
         if (aux_list != NULL)
-            result = strconcat(result, " | ");
+            result = strconcat(result, "| ");
     }
 
-    if (!self->wait)
-        result = strconcat(result, " & ");
+    if (self->wait)
+        result = strconcat(result, "& ");
 
     assert(pipeline_is_empty(self) || pipeline_get_wait(self) || strlen(result) > 0);
 
