@@ -313,7 +313,7 @@ char *pipeline_to_string(const pipeline self)
             result = strconcat(result, "| ");
     }
 
-    if (self->wait)
+    if (!self->wait)
         result = strconcat(result, "& ");
 
     assert(pipeline_is_empty(self) || pipeline_get_wait(self) || strlen(result) > 0);
