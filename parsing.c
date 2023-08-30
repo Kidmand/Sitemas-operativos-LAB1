@@ -51,6 +51,7 @@ pipeline parse_pipeline(Parser p)
 
     while (another_pipe && !error)
     {
+        parser_skip_blanks(p);
         cmd = parse_scommand(p);
         parser_op_pipe(p, &another_pipe);
         pipeline_push_back(result, cmd);
@@ -67,7 +68,7 @@ pipeline parse_pipeline(Parser p)
     if (garbage)
     {
         char *garbage_str = parser_last_garbage(p);
-        printf("Se borro la siguiente basura: '%s'\n", garbage_str);
+        printf("No se logro interpretar: '%s'\n", garbage_str);
     }
 
     // TIENE UN BYTE DE MEMORYLIKE
