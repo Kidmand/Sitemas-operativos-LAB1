@@ -42,7 +42,7 @@ static bool is_internal(char *comando) // Devuelve true si es un comando interno
 
 // Funciones para la ejecucion de comandos internos: 
 static void f_cd(scommand args){
-    char *directory = sc_to_string(args); 
+    char *directory = scommand_front(args); 
     int result = chdir(directory);
     if (result < 0)
     {
