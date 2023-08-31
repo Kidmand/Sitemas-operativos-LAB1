@@ -182,27 +182,6 @@ char *scommand_to_string(const scommand self)
     return result;
 }
 
-static void concatenate_strings(gpointer data, gpointer user_data) {
-    char** result = (char**)user_data;
-    *result = g_strconcat(*result, (const char*)data, " ", NULL);
-}
-
-char *sc_to_string(const scommand self){
-
-    assert(self!=NULL);
-    GList *args = self->args;
-
-    // Iterar sobre la lista y construir el párrafo
-    char* str = NULL;
-    g_list_foreach(args, concatenate_strings, &str);
-
-    // Liberar memoria de la lista
-    g_list_free_full(args, g_free);
-
-    return str;
-}
-
-
 /* ---------- COMANDO PIPELINE ---------- */
 
 /* Estructura de un comando con pipeline.
