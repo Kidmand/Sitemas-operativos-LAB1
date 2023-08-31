@@ -15,11 +15,15 @@ int main(int argc, char *argv[])
     input = parser_new(stdin);
     pipe = parse_pipeline(input);
 
-    char *string_pipline = pipeline_to_string(pipe);
-    printf("El pipline completo es :\n%s\n", string_pipline);
-    free(string_pipline);
+    if (pipe != NULL)
+    {
+        char *string_pipline = pipeline_to_string(pipe);
+        printf("El pipline completo es :\n%s\n", string_pipline);
+        free(string_pipline);
+        pipe = pipeline_destroy(pipe);
+    }
 
     input = parser_destroy(input);
-    pipe = pipeline_destroy(pipe);
+
     return EXIT_SUCCESS;
 }
