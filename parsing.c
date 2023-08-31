@@ -6,30 +6,36 @@
 #include "parsing.h"
 #include "parser.h"
 #include "command.h"
+#include "strextra.h"
 
-static void removeNewlines(char *str)
+/* Imprime por pantalla el error que se mande por "message"
+ */
+static void print_pipeline_error(char *message)
 {
-    char *src = str;
-    char *dst = str;
-
-    while (*src)
-    {
-        if (!(*src == '\\' && *(src + 1) == 'n'))
-        {
-            *dst = *src;
-            dst++;
-        }
-        else
-        {
-            src++; // Saltar el segundo caracter '\n'
-        }
-
-        src++;
-    }
-
-    *dst = '\0';
+    printf("Se encontro un error en el parsing: %s\n", message);
 }
 
+/* Termina de consumir todo el parser. (Incluso el \n)
+ * Retorna true si encontro basura y false en caso contrario.
+ */
+static bool parse_all_rest(Parser p)
+{
+    bool garbage, res = false;
+    parser_garbage(p, &garbage);
+    char *garbage_str = parser_last_garbage(p);
+    if (garbage)
+    {
+        res = true;
+        print_pipeline_error(garbage_str);
+    }
+    free(garbage_str);
+
+    return res;
+}
+
+/* Crea el comando simple a partir del parser.
+ * Si encuentra un error de sintaxis retorna NULL.
+ */
 static scommand parse_scommand(Parser p)
 {
     scommand cmd = scommand_new();
@@ -46,13 +52,8 @@ static scommand parse_scommand(Parser p)
             finish_cmd = true;
             free(arg);
         }
-        else if (strcmp(arg, "\\n") == 0)
-        {
-            arg = parser_next_argument(p, &arg_type);
-        }
         else
         {
-            removeNewlines(arg);
             switch (arg_type)
             {
             case ARG_NORMAL:
@@ -66,6 +67,16 @@ static scommand parse_scommand(Parser p)
                 break;
             }
         }
+    }
+
+    // Manejo de errores
+
+    // No se paso ningun argumeto al comando.
+    if (scommand_is_empty(cmd))
+    {
+        cmd = scommand_destroy(cmd);
+        cmd = NULL;
+        print_pipeline_error("No se pudo leer ningun argumento");
     }
 
     return cmd;
@@ -82,9 +93,12 @@ pipeline parse_pipeline(Parser p)
     {
         parser_skip_blanks(p);
         cmd = parse_scommand(p);
-        parser_op_pipe(p, &another_pipe);
-        pipeline_push_back(result, cmd);
         error = (cmd == NULL); /* Comando inválido al empezar */
+        if (!error)
+        {
+            parser_op_pipe(p, &another_pipe);
+            pipeline_push_back(result, cmd);
+        }
     }
 
     // Seteo si se ejecuta en background o foreground
@@ -92,19 +106,22 @@ pipeline parse_pipeline(Parser p)
     parser_op_background(p, &was_op_background);
     pipeline_set_wait(result, !was_op_background);
 
-    bool garbage;
-    parser_garbage(p, &garbage);
-    if (garbage)
+    /* Termina de leer lo restante y revisa si hay basura.
+     * Consumir todo lo que hay inclusive el \n
+     * Tolerancia a espacios posteriores.
+     */
+    bool garbage = parse_all_rest(p);
+
+    // Manejo de errores
+    if (error || garbage)
     {
-        char *garbage_str = parser_last_garbage(p);
-        printf("No se logro interpretar: '%s'\n", garbage_str);
+        /* Si hubo error, hacemos cleanup */
+        result = pipeline_destroy(result);
+        result = NULL;
+        return result;
     }
 
-    // TIENE UN BYTE DE MEMORYLIKE
+    /*  */
 
-    /* Tolerancia a espacios posteriores */
-    /* Consumir todo lo que hay inclusive el \n */
-    /* Si hubo error, hacemos cleanup */
-
-    return result; // MODIFICAR
+    return result;
 }
