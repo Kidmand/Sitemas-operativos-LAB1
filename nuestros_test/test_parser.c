@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
     printf("Lo que se borro fue: %s\n", garbage_str);
     // free(garbage_str);
 
+    // ESTO SE PRENDE SOLO SI TOCAMOS " ctrl-D "
     printf("El parser llego al final: %d \n", parser_at_eof(input));
 
     input = parser_destroy(input);
