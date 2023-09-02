@@ -99,17 +99,16 @@ void builtin_run(scommand cmd)
 
     char *comando = scommand_front(cmd);
 
-    scommand_pop_front(cmd); // cmd solo contiene los argumentos ahora
-
-    if (strcmp(comando, "cd") == 0)
+    if (strcmp(comando, internal_commands[0]) == 0)
     {
+        scommand_pop_front(cmd); // cmd solo contiene los argumentos ahora
         f_cd(cmd);
     }
-    else if (strcmp(comando, "help") == 0)
+    else if (strcmp(comando, internal_commands[1]) == 0)
     {
         f_help();
     }
-    else if (strcmp(comando, "exit") == 0)
+    else if (strcmp(comando, internal_commands[2]) == 0)
     {
         f_exit();
     }
