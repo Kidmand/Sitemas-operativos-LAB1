@@ -140,7 +140,6 @@ void builtin_run(scommand cmd)
         scommand_pop_front(cmd); // cmd solo contiene los argumentos ahora
         f_cd(cmd);
     }
-
     else if (strcmp(comando, internal_commands[1]) == 0)
     {
         f_help(cmd);
