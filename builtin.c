@@ -8,13 +8,13 @@
 #include "command.h"
 #include "builtin.h"
 
-static const char *internal_commands[] = {"cd", "help", "exit"};
+static const char *internal_commands[] = {"cd", "help", "exit", "pwd"};
 
 /* Imprime por pantalla el error que se mande por "message"
  */
 static void print_internal_cmf_error(char *message)
 {
-    printf("Se encontro un error en los comandos internos: %s\n", message);
+    printf("ERROR con los comandos internos: %s\n", message);
 }
 
 // Funciones auxiliares de comandos internos:
@@ -48,29 +48,65 @@ static bool is_internal(char *comando) // Devuelve true si es un comando interno
 // Funciones para la ejecucion de comandos internos:
 static void f_cd(scommand args)
 {
-    char *directory = scommand_front(args);
-    int result = chdir(directory);
-    if (result < 0)
+    if (scommand_length(args) > 1)
     {
-        print_internal_cmf_error("Error al cambiar el directorio de trabajo\n");
+        print_internal_cmf_error("El comando 'cd' unicamente recibe un argumento.");
+    }
+    else
+    {
+        char *directory = scommand_front(args);
+        int result = chdir(directory);
+        if (result < 0)
+        {
+            print_internal_cmf_error("Error al cambiar el directorio de trabajo");
+        }
     }
 }
 
-static void f_help(void)
+static void f_help(scommand args)
 {
-    printf("Shell: MyBash\n");
-    printf("Autores: Ramiro, Matias, Mora, Daian.\n");
-    printf("Comandos Internos:\n");
-    printf("cd: Para cambiar el directorio actual de trabajo en el sistema de archivos.\n");
-    printf("help: Proporciona informacion al usuario sobre los comandos disponibles.\n");
-    printf("exit: El programa finaliza de forma correcta.\n");
+    if (scommand_length(args) > 1)
+    {
+        print_internal_cmf_error("El comando 'help' no recibe argumentos.");
+    }
+    else
+    {
+        printf("Shell: MyBash\n");
+        printf("Autores: Ramiro, Matias, Mora, Daian.\n");
+        printf("Comandos Internos:\n");
+        printf("cd: Para cambiar el directorio actual de trabajo en el sistema de archivos.\n");
+        printf("pwd: Imprime el directorio de trabajo actual. \n");
+        printf("help: Proporciona informacion al usuario sobre los comandos disponibles.\n");
+        printf("exit: El programa finaliza de forma correcta.\n");
+    }
 }
 // Debe mostrar un mensaje por la salida estándar indicando el nombre del shell, el nombre de sus autores
 // y listar los comandos internos implementados con una breve descripción de lo que hace cada uno.
 
-static void f_exit(void)
+static void f_exit(scommand args)
 {
-    exit_mybash = true;
+    if (scommand_length(args) > 1)
+    {
+        print_internal_cmf_error("El comando 'exit' no recibe argumentos.");
+    }
+    else
+    {
+        exit_mybash = true;
+    }
+}
+
+static void f_pwd(scommand args)
+{
+    if (scommand_length(args) > 1)
+    {
+        print_internal_cmf_error("El comando 'pwd' no recibe argumentos.");
+    }
+    else
+    {
+        char currentDir[1024];
+        getcwd(currentDir, sizeof(currentDir));
+        printf("%s\n", currentDir);
+    }
 }
 
 // Funciones del TAD:
@@ -104,12 +140,17 @@ void builtin_run(scommand cmd)
         scommand_pop_front(cmd); // cmd solo contiene los argumentos ahora
         f_cd(cmd);
     }
+
     else if (strcmp(comando, internal_commands[1]) == 0)
     {
-        f_help();
+        f_help(cmd);
     }
     else if (strcmp(comando, internal_commands[2]) == 0)
     {
-        f_exit();
+        f_exit(cmd);
+    }
+    else if (strcmp(comando, internal_commands[3]) == 0)
+    {
+        f_pwd(cmd);
     }
 }
