@@ -8,6 +8,8 @@
 #include "parsing.h"
 #include "builtin.h"
 
+volatile bool exit_mybash = false;
+
 static void show_prompt(void)
 {
     printf("mybash> ");
@@ -16,29 +18,33 @@ static void show_prompt(void)
 
 int main(int argc, char *argv[])
 {
-    pipeline pipe;
-    Parser input;
-    bool quit = false;
+    pipeline pipe = NULL;
+    Parser input = NULL;
+
+    exit_mybash = false;
 
     input = parser_new(stdin);
-    while (!quit)
+    while (!exit_mybash)
     {
-        show_prompt();
-
         // Si se preciono CTL+D => Salimos de la terminal.
-        if (parser_at_eof(input))
-            exit(0);
+        exit_mybash = parser_at_eof(input);
 
-        // Se parsea el input.
-        pipe = parse_pipeline(input);
-
-        // Si no hubo errores se ejecuta el pipeline
-        if (pipe != NULL)
+        if (!exit_mybash)
         {
-            execute_pipeline(pipe);
-            pipe = pipeline_destroy(pipe);
+            show_prompt();
+
+            // Se parsea el input.
+            pipe = parse_pipeline(input);
+
+            // Si no hubo errores se ejecuta el pipeline
+            if (pipe != NULL)
+            {
+                execute_pipeline(pipe);
+                pipe = pipeline_destroy(pipe);
+            }
         }
     }
+    printf("\n");
     parser_destroy(input);
     input = NULL;
     return EXIT_SUCCESS;
