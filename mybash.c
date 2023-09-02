@@ -24,14 +24,20 @@ int main(int argc, char *argv[])
     while (!quit)
     {
         show_prompt();
+
+        // Si se preciono CTL+D => Salimos de la terminal.
+        if (parser_at_eof(input))
+            exit(0);
+
+        // Se parsea el input.
         pipe = parse_pipeline(input);
 
-        /* Hay que salir luego de ejecutar? */
-        quit = parser_at_eof(input);
-        /*
-         * COMPLETAR
-         *
-         */
+        // Si no hubo errores se ejecuta el pipeline
+        if (pipe != NULL)
+        {
+            execute_pipeline(pipe);
+            pipe = pipeline_destroy(pipe);
+        }
     }
     parser_destroy(input);
     input = NULL;
