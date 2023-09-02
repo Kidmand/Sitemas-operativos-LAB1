@@ -131,6 +131,13 @@ char *scommand_to_string(const scommand self);
  */
 
 /*
+ * Convierte todos los argumentos de self en un arreglo de arreglos, que termina
+ * en NULL. Los argumentos son eliminados de self, de forma que self queda vacía
+ * El arreglo devuelto, y todos los arreglos que contiene son propiedad del llamador
+ */
+char **scommand_to_argv(scommand self);
+
+/*
  * pipeline: tubería de comandos.
  * Ejemplo: ls -l *.c > out < in  |  wc  |  grep -i glibc  &
  * Secuencia de comandos simples que se ejecutarán en un pipeline,

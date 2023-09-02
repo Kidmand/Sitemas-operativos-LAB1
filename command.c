@@ -182,6 +182,31 @@ char *scommand_to_string(const scommand self)
     return result;
 }
 
+char **scommand_to_argv(scommand self)
+{
+    assert(self != NULL);
+
+    unsigned int n = scommand_length(self);
+    char **argv = calloc(sizeof(char *), n + 1);
+
+    if (argv != NULL)
+    {
+        for (unsigned int j = 0; j < n; j++)
+        {
+            char *arg = scommand_front(self);
+            scommand_pop_front(self);
+            argv[j] = arg;
+
+            assert(argv[j] != NULL);
+        }
+        argv[n] = NULL;
+    }
+
+    assert(self != NULL &&
+           ((argv == NULL) !=
+            (scommand_is_empty(self) && argv != NULL && argv[n] == NULL)));
+    return (argv);
+}
 /* ---------- COMANDO PIPELINE ---------- */
 
 /* Estructura de un comando con pipeline.
