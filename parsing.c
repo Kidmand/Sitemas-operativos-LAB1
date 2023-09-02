@@ -28,8 +28,7 @@ static bool parse_all_rest(Parser p)
         res = true;
         print_pipeline_error(garbage_str);
     }
-    free(garbage_str);
-
+    // free(garbage_str);                                                             ------------->  ACA HAY UN BYTE DE MEMOERY LEAK
     return res;
 }
 
@@ -76,7 +75,6 @@ static scommand parse_scommand(Parser p)
     {
         cmd = scommand_destroy(cmd);
         cmd = NULL;
-        print_pipeline_error("No se pudo leer ningun argumento");
     }
 
     return cmd;
@@ -110,6 +108,7 @@ pipeline parse_pipeline(Parser p)
      * Consumir todo lo que hay inclusive el \n
      * Tolerancia a espacios posteriores.
      */
+
     bool garbage = parse_all_rest(p);
 
     // Manejo de errores
@@ -118,10 +117,7 @@ pipeline parse_pipeline(Parser p)
         /* Si hubo error, hacemos cleanup */
         result = pipeline_destroy(result);
         result = NULL;
-        return result;
     }
-
-    /*  */
 
     return result;
 }
