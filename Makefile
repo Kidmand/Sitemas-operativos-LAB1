@@ -21,6 +21,9 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS) $(PRECOMPILED)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
+run: $(TARGET)
+	clear && ./$(TARGET)
+
 clean:
 	rm -f $(TARGET) $(OBJECTS) .depend *~
 	make -C tests clean
