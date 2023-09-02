@@ -193,10 +193,10 @@ char **scommand_to_argv(scommand self)
     {
         for (unsigned int j = 0; j < n; j++)
         {
-            char *arg = scommand_front(self);
-            scommand_pop_front(self);
-            argv[j] = arg;
+            char *arg = g_list_nth_data(self->args, 0u);
+            self->args = g_list_remove(self->args, arg);
 
+            argv[j] = arg;
             assert(argv[j] != NULL);
         }
         argv[n] = NULL;
