@@ -12,7 +12,7 @@
  */
 static void print_pipeline_error(char *message)
 {
-    printf("Se encontro un error en el parsing: %s\n", message);
+    printf("ERROR en el parsing: %s\n", message);
 }
 
 /* Termina de consumir todo el parser. (Incluso el \n)
@@ -75,8 +75,8 @@ static scommand parse_scommand(Parser p)
     {
         cmd = scommand_destroy(cmd);
         cmd = NULL;
+        print_pipeline_error("No se puede ejecutar el comando de esa forma.");
     }
-
     return cmd;
 }
 
