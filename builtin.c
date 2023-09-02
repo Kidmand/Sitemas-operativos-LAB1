@@ -71,13 +71,13 @@ static void f_help(scommand args)
     }
     else
     {
-        printf("Shell: MyBash\n");
-        printf("Autores: Ramiro, Matias, Mora, Daian.\n");
+        printf("\nShell   : MyBash\n");
+        printf("Autores : Ramiro, Matias, Mora, Daian.\n\n");
         printf("Comandos Internos:\n");
-        printf("cd: Para cambiar el directorio actual de trabajo en el sistema de archivos.\n");
-        printf("pwd: Imprime el directorio de trabajo actual. \n");
-        printf("help: Proporciona informacion al usuario sobre los comandos disponibles.\n");
-        printf("exit: El programa finaliza de forma correcta.\n");
+        printf("  - cd   : Recibe una ruta donde moverse desde el directorio actual.\n");
+        printf("  - pwd  : Imprime el directorio de trabajo actual. \n");
+        printf("  - help : Proporciona informacion al usuario sobre los comandos disponibles.\n");
+        printf("  - exit : La terminal finaliza de forma correcta.\n\n");
     }
 }
 // Debe mostrar un mensaje por la salida estándar indicando el nombre del shell, el nombre de sus autores
