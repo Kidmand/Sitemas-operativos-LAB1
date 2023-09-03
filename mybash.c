@@ -8,8 +8,6 @@
 #include "parsing.h"
 #include "builtin.h"
 
-volatile bool exit_mybash = false;
-
 static void show_prompt(void)
 {
     printf("mybash> ");
