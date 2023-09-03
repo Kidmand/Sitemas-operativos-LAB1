@@ -1,6 +1,4 @@
-mybash.o
-parsing.o
-strextra.o
+mybash
 
 *.o
 
