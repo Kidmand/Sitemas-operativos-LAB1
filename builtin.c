@@ -10,14 +10,15 @@
 
 static const char *internal_commands[] = {"cd", "help", "exit", "pwd"};
 
-/* Imprime por pantalla el error que se mande por "message"
- */
-static void print_internal_cmf_error(char *message)
+
+
+// Funciones auxiliares:
+
+static void print_internal_cmf_error(char *message) /* Imprime por pantalla el error que se mande por "message"*/
 {
     printf("ERROR con los comandos internos: %s\n", message);
 }
 
-// Funciones auxiliares de comandos internos:
 static unsigned int internal_length(const char *internal_commands[]) // Devuelve el numero de comandos internos
 {
     unsigned int length = 0;
@@ -45,21 +46,109 @@ static bool is_internal(char *comando) // Devuelve true si es un comando interno
     return b;
 }
 
-// Funciones para la ejecucion de comandos internos:
+static unsigned int directory_count(char *str) { 
+    assert(str!=NULL);
+    unsigned int count=0, i=0;
+    while (str[i] != '\0') {
+        if (str[i] != '/')
+        {
+            count = count + 1;
+        }
+        i++;
+    }
+    assert(count > 0);
+    return count;
+}
+
+static unsigned int puntito_count(char *str) { 
+    assert(str!=NULL);
+    unsigned int count=0, i=0;
+    while (str[i] != '\0') {
+        if (str[i] == '.')
+        {
+            count = count + 1;
+        }
+        i++;
+    }
+    return count;
+}
+
+static bool todos_puntos(char *str) { 
+    assert(str!=NULL);
+    unsigned int i=0;
+    bool b = true;
+    while (b && str[i] != '\0') {
+        if (str[i] != '.')
+        {
+            b = false;
+        }
+        i++;
+    }
+    return b;
+}
+
+
+// Funciones de ejecucion de comandos internos:
+
+static int f_cd_solo(void){
+    char *directory = NULL; 
+    int result = 0;
+    char currentDir[1024];
+
+    getcwd(currentDir, sizeof(currentDir));
+    unsigned int n_puntitos = directory_count(currentDir);
+
+    if (n_puntitos > 1)
+    {
+        directory = "..";
+        while (n_puntitos <= 1)
+        {
+            result = chdir(directory);
+            n_puntitos = n_puntitos -1;
+        }     
+    } 
+    else {
+        directory = currentDir;
+        result = chdir(directory);
+    }
+    return result;
+}
+
 static void f_cd(scommand args)
 {
-    if (scommand_length(args) > 1)
+    char *directory = NULL; 
+    int result;
+
+    if (scommand_length(args) > 1) // Error, hay mas de un argumento
     {
         print_internal_cmf_error("El comando 'cd' unicamente recibe un argumento.");
     }
-    else
+    else if (args == NULL) // se paso el cd solo
     {
-        char *directory = scommand_front(args);
-        int result = chdir(directory);
-        if (result < 0)
+        result = f_cd_solo();
+    }
+    else // Hay un argumento
+    {
+        directory = scommand_front(args);
+        unsigned int n_puntitos = puntito_count(directory);
+
+        if (n_puntitos > 1 && todos_puntos(directory))
         {
-            print_internal_cmf_error("Error al cambiar el directorio de trabajo");
+            while (n_puntitos - 1 > 0)
+            {
+                result = chdir("..");
+                n_puntitos =  result == 0 ? n_puntitos - 1 : 0;
+            }
+        } 
+        else 
+        {
+            result = chdir(directory);
         }
+    }
+
+    if (result != 0)
+    {
+        print_internal_cmf_error("Error al cambiar el directorio de trabajo");
     }
 }
 
@@ -80,8 +169,6 @@ static void f_help(scommand args)
         printf("  - exit : La terminal finaliza de forma correcta.\n\n");
     }
 }
-// Debe mostrar un mensaje por la salida estándar indicando el nombre del shell, el nombre de sus autores
-// y listar los comandos internos implementados con una breve descripción de lo que hace cada uno.
 
 static void f_exit(scommand args)
 {
@@ -109,7 +196,9 @@ static void f_pwd(scommand args)
     }
 }
 
+
 // Funciones del TAD:
+
 bool builtin_is_internal(scommand cmd)
 {
 
