@@ -24,6 +24,5 @@ int main(int argc, char *argv[])
     }
 
     input = parser_destroy(input);
-
     return EXIT_SUCCESS;
 }
