@@ -1,0 +1,18 @@
+Running suite parser
+test_parsing.c:73:P:Precondition:test_parse_closed:0: Passed
+test_parsing.c:101:P:General:test_consumes_until_newline:0: Passed
+test_parsing.c:112:P:General:test_consumes_until_eof:0: Passed
+test_parsing.c:126:F:Valid:test_empty:0: Assertion 'output==NULL' failed
+test_parsing.c:161:F:Valid:test_command:0: Assertion 'pipeline_get_wait (output)' failed
+test_parsing.c:184:F:Valid:test_command_with_args:0: Assertion 'pipeline_get_wait(output)' failed
+test_parsing.c:204:F:Valid:test_command_background:0: Assertion '! pipeline_get_wait (output)' failed
+test_parsing.c:226:F:Valid:test_command_redir_in:0: Assertion 'pipeline_get_wait (output)' failed
+test_parsing.c:249:F:Valid:test_command_redir_out:0: Assertion 'pipeline_get_wait (output)' failed
+test_parsing.c:273:F:Valid:test_command_redir_both:0: Assertion 'pipeline_get_wait (output)' failed
+test_parsing.c:301:F:Valid:test_pipe_simple:0: Assertion 'pipeline_get_wait (output)' failed
+test_parsing.c:331:F:Valid:test_pipe_with_args:0: Assertion 'pipeline_get_wait (output)' failed
+test_parsing.c:361:F:Valid:test_pipe_background:0: Assertion '! pipeline_get_wait (output)' failed
+test_parsing.c:57:P:Valid:test_non_alphabetic_args:0: Passed
+test_parsing.c:57:P:Valid:test_many_args:0: Passed
+Results for all suites run:
+33%: Checks: 15, Failures: 10, Errors: 0

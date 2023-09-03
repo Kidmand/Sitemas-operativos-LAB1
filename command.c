@@ -153,13 +153,10 @@ char *scommand_to_string(const scommand self)
 {
     assert(self != NULL);
     char *result = strdup("");
-    GList *aux_list = self->args;
 
-    while (aux_list != NULL)
-    {
-        result = strconcat(result, g_list_nth_data(aux_list, 0));
+    for (unsigned i = 0; i<scommand_length(self); i++) {
+        result = strconcat(result, g_list_nth_data(self->args, i));
         result = strconcat(result, " ");
-        aux_list = g_list_next(aux_list);
     }
 
     if (self->redir_out != NULL)
