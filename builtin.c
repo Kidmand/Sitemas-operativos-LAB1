@@ -50,7 +50,7 @@ static unsigned int directory_count(char *str) {
     assert(str!=NULL);
     unsigned int count=0, i=0;
     while (str[i] != '\0') {
-        if (str[i] != '/')
+        if (str[i] == '/')
         {
             count = count + 1;
         }
@@ -91,17 +91,17 @@ static bool todos_puntos(char *str) {
 // Funciones de ejecucion de comandos internos:
 
 static int f_cd_solo(void){
-    char *directory = NULL; 
+    char *directory; 
     int result = 0;
     char currentDir[1024];
 
     getcwd(currentDir, sizeof(currentDir));
     unsigned int n_puntitos = directory_count(currentDir);
 
-    if (n_puntitos > 1)
+    if (n_puntitos > 0)
     {
         directory = "..";
-        while (n_puntitos <= 1)
+        while (n_puntitos > 0)
         {
             result = chdir(directory);
             n_puntitos = n_puntitos -1;
@@ -123,7 +123,7 @@ static void f_cd(scommand args)
     {
         print_internal_cmf_error("El comando 'cd' unicamente recibe un argumento.");
     }
-    else if (args == NULL) // se paso el cd solo
+    else if (args == NULL || scommand_is_empty(args)) // se paso el cd solo
     {
         result = f_cd_solo();
     }
