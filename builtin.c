@@ -11,7 +11,6 @@
 static const char *internal_commands[] = {"cd", "help", "exit", "pwd"};
 
 
-
 // Funciones auxiliares:
 
 static void print_internal_cmf_error(char *message) /* Imprime por pantalla el error que se mande por "message"*/
