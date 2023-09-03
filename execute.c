@@ -65,6 +65,7 @@ void execute_pipeline(pipeline apipe)
                     if (wait_response == -1) // Manejo de errores
                         print_execute_error("Ocurrio un error al ejecutar el wait()\n");
                     pipeline_pop_front(apipe);
+                    exit(EXIT_SUCCESS);
                 }
                 else // Manejo de errores
                 {
