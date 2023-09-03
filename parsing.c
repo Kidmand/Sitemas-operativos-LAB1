@@ -75,8 +75,8 @@ static scommand parse_scommand(Parser p)
     {
         cmd = scommand_destroy(cmd);
         cmd = NULL;
-        print_pipeline_error("No se puede ejecutar el comando de esa forma.");
     }
+
     return cmd;
 }
 
@@ -85,7 +85,7 @@ pipeline parse_pipeline(Parser p)
     assert(p != NULL && !parser_at_eof(p));
     pipeline result = pipeline_new();
     scommand cmd = NULL;
-    bool error = false, another_pipe = true;
+    bool error = false, another_pipe = true, exist_pipe = false;
 
     while (another_pipe && !error)
     {
@@ -95,6 +95,7 @@ pipeline parse_pipeline(Parser p)
         if (!error)
         {
             parser_op_pipe(p, &another_pipe);
+            exist_pipe = another_pipe || exist_pipe;
             pipeline_push_back(result, cmd);
         }
     }
@@ -110,6 +111,11 @@ pipeline parse_pipeline(Parser p)
      */
 
     bool garbage = parse_all_rest(p);
+
+    if ((error && garbage) || (error && was_op_background) || (error && exist_pipe))
+    {
+        print_pipeline_error("No se puede ejecutar el comando de esa forma.");
+    }
 
     // Manejo de errores
     if (error || garbage)
