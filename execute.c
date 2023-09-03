@@ -18,7 +18,7 @@ static void print_execute_error(char *message)
 }
 
 /* Funcion encargada de ejecutar programas externos*/
-static void extern_run(scommand cmd)
+static void external_run(scommand cmd)
 {
     assert(cmd != NULL);
 
@@ -29,23 +29,6 @@ static void extern_run(scommand cmd)
 
     // Si sigue ejecutando es porque fallo
     print_execute_error("Fallo la ejecucion del proceso.");
-}
-
-/* Funcion encargada de ver si es un comando builtin o externo y lo ejecuta sea como sea*/
-static void execute_single_cmd(scommand cmd)
-{
-    assert(cmd != NULL);
-    bool is_internal = builtin_is_internal(cmd);
-
-    // Decidimos si ejecutar builtin o externo.
-    if (is_internal)
-    {
-        builtin_run(cmd);
-    }
-    else
-    {
-        extern_run(cmd);
-    }
 }
 
 void execute_pipeline(pipeline apipe)
@@ -61,27 +44,32 @@ void execute_pipeline(pipeline apipe)
         // Iteramos por todos los comandos
         while (pipeline_length(apipe) > 0)
         {
-            pid_t pc_id_fork = fork(); // Creamos un nuevo proceso para cada uno de los comandos
-            if (pc_id_fork == 0)       // En el hijo ejecutamos un solo comando
-            {
-                cmd = pipeline_front(apipe); // Obtenermos el primer comando del pipline
-                execute_single_cmd(cmd);     // Ejecutamos el comando simple
+            cmd = pipeline_front(apipe); // Obtenermos el primer comando del pipline
 
-                /*En el caso que el comando builtin eso se va a ejecutar, pero sino
-                 esto no se ejecuta y el encargado de eliminar el comando ya ejecutado es el padre*/
-                if (builtin_is_internal(cmd))
-                    pipeline_pop_front(apipe);
-            }
-            else if (pc_id_fork > 0) // El padre, encargado de esperar al hijo siempre
+            // En el caso que el comando builtin eso se va a ejecutar
+            if (builtin_is_internal(cmd))
             {
-                pid_t wait_response = wait(NULL);
-                if (wait_response == -1) // Manejo de errores
-                    print_execute_error("Ocurrio un error al ejecutar el wait()\n");
+                builtin_run(cmd);
                 pipeline_pop_front(apipe);
             }
-            else // Manejo de errores
+            else
             {
-                print_execute_error("Ocurrio un error al ejecutar el segundo fork()\n");
+                pid_t pc_id_fork = fork(); // Creamos un nuevo proceso para cada uno de los comandos
+                if (pc_id_fork == 0)       // En el hijo ejecutamos un solo comando
+                {
+                    external_run(cmd); // Ejecutamos el comando simple externo
+                }
+                else if (pc_id_fork > 0) // El padre, encargado de esperar al hijo siempre
+                {
+                    pid_t wait_response = wait(NULL);
+                    if (wait_response == -1) // Manejo de errores
+                        print_execute_error("Ocurrio un error al ejecutar el wait()\n");
+                    pipeline_pop_front(apipe);
+                }
+                else // Manejo de errores
+                {
+                    print_execute_error("Ocurrio un error al ejecutar el segundo fork()\n");
+                }
             }
         }
     }
