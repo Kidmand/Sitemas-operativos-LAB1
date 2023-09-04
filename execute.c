@@ -31,13 +31,63 @@ static void external_run(scommand cmd)
     print_execute_error("Fallo la ejecucion del proceso.");
 }
 
+
+static void comand_internal_external (pipeline apipe, scommand cmd) {
+
+    if (builtin_is_internal(cmd)) { 
+        builtin_run(cmd);
+    } else {
+        external_run(cmd);
+    }
+} 
+
 void execute_pipeline(pipeline apipe)
 {
     assert(apipe != NULL);
     scommand cmd;
-    bool is_foreground = pipeline_get_wait(apipe);
+    int fd[2];
 
-    pid_t pc_id_for_background = fork(); // Creamos un nuevo proceso para ejecutar todos los comandos.
+    if (pipe(fd) == -1) {
+       printf("Error al declarar la tuberiria pipe: \n"); 
+       exit(EXIT_SUCCESS);
+    }
+
+    cmd = pipeline_front(apipe);
+
+    if (pipeline_length(apipe) > 1) { 
+
+        pid_t conection_pipe = fork();
+
+        if (conection_pipe == 0) {
+            cmd = pipeline_front(apipe);
+
+            close(fd[0]);
+            dup2(fd[1], STDOUT_FILENO);
+            close(fd[1]);
+            
+            //external_run(cmd);
+            comand_internal_external(apipe, cmd);
+            
+        } else if (conection_pipe > 0) {
+            pid_t wait_response = wait(NULL);
+            if (wait_response == -1) {
+                print_execute_error("Ocurrio un error al ejecutar el wait()\n");
+            }
+            pipeline_pop_front(apipe);
+            cmd = pipeline_front(apipe);
+
+            close(fd[1]);
+            dup2(fd[0], STDIN_FILENO);
+            close(fd[0]);
+            
+            //external_run(cmd);
+            comand_internal_external(apipe, cmd);
+            
+        }
+    } else {
+        comand_internal_external(apipe, cmd);
+    }
+    /*pid_t pc_id_for_background = fork(); // Creamos un nuevo proceso para ejecutar todos los comandos.
 
     if (pc_id_for_background == 0) // El hijo ejecuta la totalidad de los comandos
     {
@@ -49,8 +99,7 @@ void execute_pipeline(pipeline apipe)
             // En el caso que el comando builtin eso se va a ejecutar
             if (builtin_is_internal(cmd))
             {
-                builtin_run(cmd);
-                pipeline_pop_front(apipe);
+               comand_internal(apipe, cmd);
             }
             else
             {
@@ -86,7 +135,7 @@ void execute_pipeline(pipeline apipe)
     else // Manejo de errores
     {
         print_execute_error("Ocurrio un error al ejecutar el primer fork()\n");
-    }
+    }*/
 }
 
 /*
