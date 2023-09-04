@@ -214,7 +214,7 @@ void execute_pipeline(pipeline apipe)
     {
         unsigned int active_child_processes = select_mode_pipline(apipe);
 
-        // Se espera a que todos los hijos terminen
+        // Se espera a que todos los hijos terminen uno por uno
         while (active_child_processes > 0u)
         {
             wait_();
@@ -225,34 +225,34 @@ void execute_pipeline(pipeline apipe)
     {
         // Hay que correrlo en modo background
         pid_t pid = fork();
+
         if (pid < 0)
         {
-            // Caso de que el fork falle
-            perror("fork");
+            print_execute_error("Error con el fork");
         }
         else if (pid == 0)
         {
-            // El proceso hijo
-
             // Se conecta el stdin del hijo a un archivo vacio
             /* Como archivo vacio se usa una punta de lectura de pipe
                con punta de escritura cerrada */
-            int pipefds[2];
-            int res_pipe = pipe(pipefds);
+            int fd[2];
+            int res_pipe = pipe(fd);
             if (res_pipe < 0)
             {
-                perror("pipe");
+                print_execute_error("Fallo el dup");
                 exit(EXIT_FAILURE);
             }
-            int punta_lectura = pipefds[0];
-            int punta_escritura = pipefds[1];
 
-            close(punta_escritura);
+            // Se obtienen los file descriptors para mejor legibilidad
+            int fd_read = fd[0];
+            int fd_write = fd[1];
 
-            int res_dup2 = dup2(punta_lectura, STDIN_FILENO);
+            close(fd_write);
+
+            int res_dup2 = dup2(fd_read, STDIN_FILENO);
             if (res_dup2 < 0)
             {
-                perror("perror ");
+                print_execute_error("Fallo el dup");
                 exit(EXIT_FAILURE);
             }
 
@@ -264,16 +264,13 @@ void execute_pipeline(pipeline apipe)
         }
         else
         {
-            // El proceso padre
-            // Espera a que el hijo termine de crear todos los procesos
-            wait(NULL);
+            // Espera a que el hijo termine
+            wait_();
         }
     }
 }
 
 /*
-FALTAN MUCHAS COSAS:
- - Implementar la funcionalidad del pipe (Se tiene  que pasar el stdout al stdin del siguinte comando) (HECHO)
+FALTAN:
  - Implementar el manejo de in/out  de archivos (No esta hecho nada)
- - Arreglar CTL+D (HECHO)
 */
