@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "command.h"
 #include "execute.h"
@@ -11,8 +13,11 @@
 volatile bool exit_mybash = false;
 
 static void show_prompt(void)
-{
-    printf("mybash> ");
+{   char mybash[] = "mybash";
+    char pwd[1024];
+    getcwd (pwd, sizeof(pwd));
+    strcat (mybash, pwd);
+    printf ("%s ", mybash);
     fflush(stdout);
 }
 
