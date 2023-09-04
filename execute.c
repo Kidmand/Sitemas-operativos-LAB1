@@ -11,6 +11,7 @@
 #include "execute.h"
 #include "command.h"
 #include "builtin.h"
+#include "tests/syscall_mock.h"
 
 /* Función para los mensajes de error */
 static void print_execute_error(char *message)
@@ -38,23 +39,27 @@ static void scommand_external_exec(scommand cmd)
     char *output_filename = scommand_get_redir_out(cmd);
 
     // Configurar redirecciones de entrada y salida(si existen)
-    if (input_filename) {
-        int input_fd = open(input_filename, O_RDONLY);        //lee el archivo input.
-        if (input_fd == -1) {                                 //detecta si hubo un error al leer el archivo.
-            perror("Error al abrir el archivo de entrada");   
+    if (input_filename)
+    {
+        int input_fd = open(input_filename, O_RDONLY, S_IRUSR | S_IRGRP); // lee el archivo input.
+        if (input_fd == -1)
+        { // detecta si hubo un error al leer el archivo.
+            perror("Error al abrir el archivo de entrada");
             exit(EXIT_FAILURE);
         }
-        dup2(input_fd, STDIN_FILENO);      //redirección de la entrada estándar
+        dup2(input_fd, STDIN_FILENO); // redirección de la entrada estándar
         close(input_fd);
     }
 
-    if (output_filename) {
-        int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);    //abre,crea o "reemplaza" el archivo.
-        if (output_fd == -1) {                                                      //detecta si hubo un error en el paso anterior.
+    if (output_filename)
+    {
+        int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); // abre,crea o "reemplaza" el archivo.
+        if (output_fd == -1)
+        { // detecta si hubo un error en el paso anterior.
             perror("Error al abrir el archivo de salida");
             exit(EXIT_FAILURE);
         }
-        dup2(output_fd, STDOUT_FILENO);            //redirige la salida estándar del programa al archivo.
+        dup2(output_fd, STDOUT_FILENO); // redirige la salida estándar del programa al archivo.
         close(output_fd);
     }
 

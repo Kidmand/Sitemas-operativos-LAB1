@@ -7,6 +7,7 @@
 
 #include "command.h"
 #include "builtin.h"
+#include "tests/syscall_mock.h"
 
 static const char *internal_commands[] = {"cd", "help", "exit", "pwd"};
 
