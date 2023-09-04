@@ -6,18 +6,19 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "execute.h"
 #include "command.h"
 #include "builtin.h"
 
-/* Funcion para los mensajes de error */
+/* Función para los mensajes de error */
 static void print_execute_error(char *message)
 {
     printf("ERROR en el execute: %s\n", message);
 }
 
-/* Funcion para los mensajes de error del wait */
+/* Función para los mensajes de error del wait */
 static void wait_(void)
 {
     pid_t wait_response_for_background = wait(NULL);
@@ -32,6 +33,30 @@ static void scommand_external_exec(scommand cmd)
 
     // Obtengo los argumentos
     char **argv = scommand_to_argv(cmd);
+
+    char *input_filename = scommand_get_redir_in(cmd);
+    char *output_filename = scommand_get_redir_out(cmd);
+
+    // Configurar redirecciones de entrada y salida(si existen)
+    if (input_filename) {
+        int input_fd = open(input_filename, O_RDONLY);        //lee el archivo input.
+        if (input_fd == -1) {                                 //detecta si hubo un error al leer el archivo.
+            perror("Error al abrir el archivo de entrada");   
+            exit(EXIT_FAILURE);
+        }
+        dup2(input_fd, STDIN_FILENO);      //redirección de la entrada estándar
+        close(input_fd);
+    }
+
+    if (output_filename) {
+        int output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);    //abre,crea o "reemplaza" el archivo.
+        if (output_fd == -1) {                                                      //detecta si hubo un error en el paso anterior.
+            perror("Error al abrir el archivo de salida");
+            exit(EXIT_FAILURE);
+        }
+        dup2(output_fd, STDOUT_FILENO);            //redirige la salida estándar del programa al archivo.
+        close(output_fd);
+    }
 
     execvp(argv[0], argv); // Ejecuta el proceso.
 
