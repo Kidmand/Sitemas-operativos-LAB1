@@ -154,6 +154,6 @@ void execute_pipeline(pipeline apipe)
 /*
 FALTAN MUCHAS COSAS:
  - Implementar la funcionalidad del pipe (Se tiene  que pasar el stdout al stdin del siguinte comando) (HECHO)
- - Implementar el manejo de in/out  de archivos (No esta echo nada)
+ - Implementar el manejo de in/out  de archivos (No esta hecho nada)
  - Arreglar CTL+D (Nose porque no anda despues de ejecutar cosas)
 */

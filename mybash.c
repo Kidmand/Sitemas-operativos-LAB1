@@ -11,11 +11,17 @@
 #include "builtin.h"
 
 static void show_prompt(void)
-{   char mybash[] = "mybash";
+{   char mybash[] = "mybash:~";
     char pwd[1024];
     getcwd (pwd, sizeof(pwd));
-    strcat (mybash, pwd);
-    printf ("%s ", mybash);
+    strcat (pwd, "$");
+  //  strcat (mybash,"$");
+    printf("\x1b[32m");
+    printf ("%s", mybash);
+    printf("\x1b[34m");
+    printf ("%s ", pwd);
+    printf("\x1b[0m");
+
     fflush(stdout);
 }
 
