@@ -17,8 +17,6 @@ static void print_execute_error(char *message)
     printf("ERROR en el execute: %s\n", message);
 }
 
-
-
 /* Funcion encargada de ejecutar programas externos*/
 static void external_run(scommand cmd)
 {
@@ -33,9 +31,6 @@ static void external_run(scommand cmd)
     print_execute_error("Fallo la ejecucion del proceso.");
 }
 
-
-
-
 static void comand_internal_external(pipeline apipe, scommand cmd)
 {
 
@@ -49,106 +44,107 @@ static void comand_internal_external(pipeline apipe, scommand cmd)
     }
 }
 
+static void execute_process_son(pipeline apipe, scommand cmd, int fd[2])
+{
 
+    cmd = pipeline_front(apipe); // Saca el primer comando de apipe
 
+    close(fd[0]);               // cierra el extremo de lectura del pipe (tuberia), se lo conoce como read
+    dup2(fd[1], STDOUT_FILENO); // redirige la salida standar (stdout) al extremo de escritura del pipe (tuberia).
+    close(fd[1]);               // cierra el extremo de lectura del pipe (tuberia), se lo conoce como write
 
-
-static void execute_process_son(pipeline apipe, scommand cmd, int fd[2]) {
-
-    cmd = pipeline_front(apipe);   // Saca el primer comando de apipe
-
-    close(fd[0]);        // cierra el extremo de lectura del pipe (tuberia), se lo conoce como read 
-    dup2(fd[1], STDOUT_FILENO); //redirige la salida standar (stdout) al extremo de escritura del pipe (tuberia). 
-    close(fd[1]);  // cierra el extremo de lectura del pipe (tuberia), se lo conoce como write
-    
-    comand_internal_external(apipe, cmd);  // Ejecuta el comando, ya sea interno o externo    
+    comand_internal_external(apipe, cmd); // Ejecuta el comando, ya sea interno o externo
 }
 
+static void execute_process_father(pipeline apipe, scommand cmd, int fd[2])
+{
 
+    pid_t wait_response = wait(NULL);
 
+    if (wait_response == -1)
+    {
+        print_execute_error("Ocurrio un error al ejecutar el wait()\n");
+    }
 
-static void execute_process_father(pipeline apipe, scommand cmd, int fd[2]) {
+    pipeline_pop_front(apipe); /* avanza al siguiente comando, en donde la entrada stdin de este comando
+                                       estará en el extremo de lectura del pipe, es decir fd[0] */
+    cmd = pipeline_front(apipe);
 
-        pid_t wait_response = wait(NULL);
+    close(fd[1]);              // cierra el extremo de escritura del pipe (tuberia), ya que estamos con proceso padre
+    dup2(fd[0], STDIN_FILENO); // redirige la entrada standar (stdin) al extremo de lectura del pipe (tuberia).
+    close(fd[0]);              // cierra el extremo de lectura del pipe (tuberia)
 
-        if (wait_response == -1)
+    comand_internal_external(apipe, cmd); // Ejecuta el comando, ya sea interno o externo
+}
+
+static void wait_(pipeline apipe)
+{
+    pid_t wait_response_for_background = wait(NULL);
+    if (wait_response_for_background == -1)
+        print_execute_error("Ocurrio un error al ejecutar el wait()\n");
+}
+
+static void execute_all_pipline(pipeline apipe)
+{
+    scommand cmd;
+    int fd[2];
+
+    if (pipe(fd) == -1)
+    {
+        print_execute_error("Error al declarar la tuberiria pipe: \n");
+        exit(EXIT_SUCCESS);
+    }
+
+    cmd = pipeline_front(apipe);
+
+    if (pipeline_length(apipe) > 1)
+    { // verifica que haya más de 1 comado para que tenga sentido ejecutar un pipe
+
+        pid_t conection_pipe = fork();
+
+        if (conection_pipe == 0)
         {
-            print_execute_error("Ocurrio un error al ejecutar el wait()\n");
+            execute_process_son(apipe, cmd, fd);
         }
-
-        pipeline_pop_front(apipe);  /* avanza al siguiente comando, en donde la entrada stdin de este comando 
-                                            estará en el extremo de lectura del pipe, es decir fd[0] */
-        cmd = pipeline_front(apipe);
-
-        close(fd[1]); //cierra el extremo de escritura del pipe (tuberia), ya que estamos con proceso padre
-        dup2(fd[0], STDIN_FILENO); //redirige la entrada standar (stdin) al extremo de lectura del pipe (tuberia).
-        close(fd[0]);  // cierra el extremo de lectura del pipe (tuberia)
-
-        comand_internal_external(apipe, cmd);  // Ejecuta el comando, ya sea interno o externo    
-}
-
-
-
-
-
-
-static void is_foreground_ (pipeline apipe) {
-     if (pipeline_get_wait(apipe)) // Se fija si el pipline se ejecuta en foreground o no
+        else if (conection_pipe > 0)
         {
-            pid_t wait_response_for_background = wait(NULL);
-            if (wait_response_for_background == -1)
-                print_execute_error("Ocurrio un error al ejecutar el wait()\n");
+            execute_process_father(apipe, cmd, fd);
         }
+        else
+        {
+            print_execute_error("Error al ejecutar el segundo fork\n");
+        }
+    }
+    else
+    {
+        comand_internal_external(apipe, cmd); // Ejecuta el comando, ya sea interno o externo si no existe un pipe (|)
+    }
 }
-
-
-
-
-
-
-
-
 
 void execute_pipeline(pipeline apipe)
 {
     assert(apipe != NULL);
-    scommand cmd;
-    pid_t pc_id_for_background = fork(); // Creamos un nuevo proceso para ejecutar todos los comandos.
+    if (pipeline_get_wait(apipe))
+    {
+        execute_all_pipline(apipe);
+    }
+    else
+    {
+        pid_t pc_id_for_background = fork(); // Creamos un nuevo proceso para ejecutar todos los comandos.
 
-    if (pc_id_for_background == 0)     // El hijo ejecuta la totalidad de los comandos 
-    { 
-        int fd[2];
-    
-        if (pipe(fd) == -1) {
-            printf("Error al declarar la tuberiria pipe: \n");
-            exit(EXIT_SUCCESS);
+        if (pc_id_for_background == 0) // El hijo ejecuta la totalidad de los comandos
+        {
+            execute_all_pipline(apipe);
         }
-
-        cmd = pipeline_front(apipe);
-
-        if (pipeline_length(apipe) > 1) {  // verifica que haya más de 1 comado para que tenga sentido ejecutar un pipe 
-
-            pid_t conection_pipe = fork();
-
-            if (conection_pipe == 0) {
-                execute_process_son (apipe, cmd, fd);
-            }
-            else if (conection_pipe > 0) {
-                execute_process_father(apipe, cmd, fd);
-            } 
-            else {
-                printf("Error al ejecutar el segundo fork\n");
-            }
+        else if (pc_id_for_background > 0)
+        { // El padre es el encargado de decidir si espera o no al hijo
+            wait_(apipe);
         }
-        else {
-            comand_internal_external(apipe, cmd);   // Ejecuta el comando, ya sea interno o externo si no existe un pipe (|)
-        }
-    }   else if (pc_id_for_background > 0) {            // El padre es el encargado de decidir si espera o no al hijo
-            is_foreground_ (apipe);
-        } 
-        else {                 // Manejo de errores
+        else
+        { // Manejo de errores
             print_execute_error("Ocurrio un error al ejecutar el primer fork()\n");
         }
+    }
 }
 
 /*
