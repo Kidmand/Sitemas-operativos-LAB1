@@ -10,6 +10,7 @@
 
 static const char *internal_commands[] = {"cd", "help", "exit", "pwd"};
 
+volatile bool exit_mybash = false;
 
 // Funciones auxiliares:
 
@@ -45,10 +46,12 @@ static bool is_internal(char *comando) // Devuelve true si es un comando interno
     return b;
 }
 
-static unsigned int directory_count(char *str) { 
-    assert(str!=NULL);
-    unsigned int count=0, i=0;
-    while (str[i] != '\0') {
+static unsigned int directory_count(char *str)
+{
+    assert(str != NULL);
+    unsigned int count = 0, i = 0;
+    while (str[i] != '\0')
+    {
         if (str[i] == '/')
         {
             count = count + 1;
@@ -59,10 +62,12 @@ static unsigned int directory_count(char *str) {
     return count;
 }
 
-static unsigned int puntito_count(char *str) { 
-    assert(str!=NULL);
-    unsigned int count=0, i=0;
-    while (str[i] != '\0') {
+static unsigned int puntito_count(char *str)
+{
+    assert(str != NULL);
+    unsigned int count = 0, i = 0;
+    while (str[i] != '\0')
+    {
         if (str[i] == '.')
         {
             count = count + 1;
@@ -72,11 +77,13 @@ static unsigned int puntito_count(char *str) {
     return count;
 }
 
-static bool todos_puntos(char *str) { 
-    assert(str!=NULL);
-    unsigned int i=0;
+static bool todos_puntos(char *str)
+{
+    assert(str != NULL);
+    unsigned int i = 0;
     bool b = true;
-    while (b && str[i] != '\0') {
+    while (b && str[i] != '\0')
+    {
         if (str[i] != '.')
         {
             b = false;
@@ -86,11 +93,11 @@ static bool todos_puntos(char *str) {
     return b;
 }
 
-
 // Funciones de ejecucion de comandos internos:
 
-static int f_cd_solo(void){
-    char *directory; 
+static int f_cd_solo(void)
+{
+    char *directory;
     int result = 0;
     char currentDir[1024];
 
@@ -103,10 +110,11 @@ static int f_cd_solo(void){
         while (n_puntitos > 0)
         {
             result = chdir(directory);
-            n_puntitos = n_puntitos -1;
-        }     
-    } 
-    else {
+            n_puntitos = n_puntitos - 1;
+        }
+    }
+    else
+    {
         directory = currentDir;
         result = chdir(directory);
     }
@@ -115,7 +123,7 @@ static int f_cd_solo(void){
 
 static void f_cd(scommand args)
 {
-    char *directory = NULL; 
+    char *directory = NULL;
     int result;
 
     if (scommand_length(args) > 1) // Error, hay mas de un argumento
@@ -136,10 +144,10 @@ static void f_cd(scommand args)
             while (n_puntitos - 1 > 0)
             {
                 result = chdir("..");
-                n_puntitos =  result == 0 ? n_puntitos - 1 : 0;
+                n_puntitos = result == 0 ? n_puntitos - 1 : 0;
             }
-        } 
-        else 
+        }
+        else
         {
             result = chdir(directory);
         }
@@ -194,7 +202,6 @@ static void f_pwd(scommand args)
         printf("%s\n", currentDir);
     }
 }
-
 
 // Funciones del TAD:
 
