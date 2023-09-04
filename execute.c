@@ -102,10 +102,6 @@ static unsigned int execute_command_multipe(pipeline apipe)
 
     unsigned int active_child_processes = 0u;
 
-    unsigned int numberOfPipes = pipeline_length(apipe) - 1u;
-
-    bool error_flag = false;
-
     // Se crean los pipes
     int pipesfd[2];
 
@@ -120,61 +116,75 @@ static unsigned int execute_command_multipe(pipeline apipe)
         return active_child_processes;
     }
 
-    unsigned int j = 0;
-
-    // Se generan los forks necesarios
-    while (!pipeline_is_empty(apipe) && !error_flag)
+    // Se generan el fork para el primer comando
+    pid_t pid_first = fork();
+    if (pid_first < 0)
     {
-        pid_t pid = fork();
-        if (pid < 0)
+        perror("error");
+    }
+    if (pid_first == 0)
+    {
+        // Si no es el ultimo comando
+        if (pipeline_length(apipe) > 1)
         {
-            perror("error");
-            error_flag = true; // Se corta el bucle
+            int res_dup = dup2(pipesfd[1], STDOUT_FILENO);
+            if (res_dup < 0)
+            {
+                perror("dup");
+                _exit(EXIT_FAILURE);
+            }
         }
-        if (pid == 0)
+
+        // Se cierran todos los file descriptors que se usaron
+        for (unsigned int i = 0u; i < 2u; i++)
         {
-            // Si no es el ultimo comando
-            if (pipeline_length(apipe) > 1)
-            {
-                int res_dup = dup2(pipesfd[j + 1], STDOUT_FILENO);
-                if (res_dup < 0)
-                {
-                    perror("dup");
-                    _exit(EXIT_FAILURE);
-                }
-            }
-
-            // Si no es el primer comando
-            if (j != 0u)
-            {
-                int res_dup = dup2(pipesfd[j - 2u], STDIN_FILENO);
-                if (res_dup < 0)
-                {
-                    perror("dup");
-                    _exit(EXIT_FAILURE);
-                }
-            }
-
-            // Se cierran todos los file descriptors que se usaron
-            for (unsigned int i = 0u; i < 2u * numberOfPipes; i++)
-            {
-                close(pipesfd[i]);
-            }
-
-            // Se ejecuta el comando
-            scommand_exec(pipeline_front(apipe));
+            close(pipesfd[i]);
         }
-        else if (pid > 0)
+
+        // Se ejecuta el comando
+        scommand_exec(pipeline_front(apipe));
+    }
+    else if (pid_first > 0)
+    {
+        // Elimina un comando del pipe y aumenta el contador de procesos hijo
+        pipeline_pop_front(apipe);
+        active_child_processes++;
+    }
+
+    // Se generan el fork para el segundo comando
+    pid_t pid_second = fork();
+    if (pid_second < 0)
+    {
+        perror("error");
+    }
+    if (pid_second == 0)
+    {
+
+        int res_dup = dup2(pipesfd[0], STDIN_FILENO);
+        if (res_dup < 0)
         {
-            // Elimina un comando del pipe y aumenta el contador de procesos hijo
-            pipeline_pop_front(apipe);
-            j = j + 2u;
-            active_child_processes++;
+            perror("dup");
+            _exit(EXIT_FAILURE);
         }
+
+        // Se cierran todos los file descriptors que se usaron
+        for (unsigned int i = 0u; i < 2u; i++)
+        {
+            close(pipesfd[i]);
+        }
+
+        // Se ejecuta el comando
+        scommand_exec(pipeline_front(apipe));
+    }
+    else if (pid_second > 0)
+    {
+        // Elimina un comando del pipe y aumenta el contador de procesos hijo
+        pipeline_pop_front(apipe);
+        active_child_processes++;
     }
 
     // Se cierran los descriptores de archivo por completo
-    for (unsigned int i = 0u; i < 2u * numberOfPipes; i++)
+    for (unsigned int i = 0u; i < 2u; i++)
     {
         close(pipesfd[i]);
     }
