@@ -11,15 +11,18 @@
 #include "command.h"
 #include "builtin.h"
 
-static void execute_all_pipline(pipeline apipe);
-static void execute_process_son(pipeline apipe, int fd[2]);
-static void execute_process_father(pipeline apipe, int fd[2]);
-static void wait_(void);
-
 /* Funcion para los mensajes de error */
 static void print_execute_error(char *message)
 {
     printf("ERROR en el execute: %s\n", message);
+}
+
+/* Funcion para los mensajes de error del wait */
+static void wait_(void)
+{
+    pid_t wait_response_for_background = wait(NULL);
+    if (wait_response_for_background == -1)
+        print_execute_error("Ocurrio un error al ejecutar el wait()\n");
 }
 
 /* Funcion encargada de ejecutar programas externos*/
@@ -34,12 +37,11 @@ static void external_run(scommand cmd)
 
     // Si sigue ejecutando es porque fallo
     print_execute_error("Fallo la ejecucion del proceso.");
-    exit(EXIT_SUCCESS);
 }
 
-static void comand_internal_external(pipeline apipe, scommand cmd)
+static void execute_command_single(pipeline apipe)
 {
-
+    scommand cmd = pipeline_front(apipe);
     if (builtin_is_internal(cmd))
     {
         builtin_run(cmd);
@@ -63,9 +65,8 @@ static void comand_internal_external(pipeline apipe, scommand cmd)
     }
 }
 
-static void execute_all_pipline(pipeline apipe)
+static void execute_command_multipe(pipeline apipe)
 {
-    scommand cmd;
     int fd[2];
 
     if (pipe(fd) == -1)
@@ -74,116 +75,84 @@ static void execute_all_pipline(pipeline apipe)
         exit(EXIT_SUCCESS);
     }
 
-    cmd = pipeline_front(apipe);
+    int fd_read = fd[0];
+    int fd_write = fd[1];
 
-    printf("El largo del pipe es: %d \n", pipeline_length(apipe));
-    if (pipeline_length(apipe) > 1)
-    { // verifica que haya más de 1 comado para que tenga sentido ejecutar un pipe
+    scommand firts_cmd = pipeline_front(apipe);
 
-        pid_t conection_pipe = fork();
+    pid_t conection_pipe = fork();
 
-        if (conection_pipe == 0)
+    if (conection_pipe == 0)
+    {
+        close(fd_read);                // cierra el extremo de lectura del pipe (tuberia), se lo conoce como read
+        dup2(fd_write, STDOUT_FILENO); // redirige la salida standar (stdout) al extremo de escritura del pipe (tuberia).
+        close(fd_write);               // cierra el extremo de lectura del pipe (tuberia), se lo conoce como write
+        if (builtin_is_internal(firts_cmd))
         {
-            execute_process_son(apipe, fd);
-        }
-        else if (conection_pipe > 0)
-        {
-            printf("Hola soy tu padre \n");
-            execute_process_father(apipe, fd);
+            builtin_run(firts_cmd);
+            exit(EXIT_SUCCESS);
         }
         else
         {
-            print_execute_error("Error al ejecutar el segundo fork\n");
+            external_run(firts_cmd);
         }
     }
-    else if (pipeline_length(apipe) == 1)
+    else if (conection_pipe > 0)
     {
-        comand_internal_external(apipe, cmd); // Ejecuta el comando, ya sea interno o externo si no existe un pipe (|)
-    }
-}
+        pid_t wait_response = wait(NULL);
 
-static void execute_process_son(pipeline apipe, int fd[2])
-{
+        if (wait_response == -1)
+        {
+            print_execute_error("Ocurrio un error al ejecutar el wait()\n");
+        }
+        pipeline_pop_front(apipe); /* avanza al siguiente comando, en donde la entrada stdin de este comando
+                                       estará en el extremo de lectura del pipe, es decir fd[0] */
 
-    scommand cmd = pipeline_front(apipe); // Saca el primer comando de apipe
+        close(fd_write);             // cierra el extremo de escritura del pipe (tuberia), ya que estamos con proceso padre
+        dup2(fd_read, STDIN_FILENO); // redirige la entrada standar (stdin) al extremo de lectura del pipe (tuberia).
+        close(fd_read);              // cierra el extremo de lectura del pipe (tuberia)
 
-    close(fd[0]);               // cierra el extremo de lectura del pipe (tuberia), se lo conoce como read
-    dup2(fd[1], STDOUT_FILENO); // redirige la salida standar (stdout) al extremo de escritura del pipe (tuberia).
-    close(fd[1]);               // cierra el extremo de lectura del pipe (tuberia), se lo conoce como write
-
-    if (builtin_is_internal(cmd))
-    {
-        builtin_run(cmd);
+        execute_command_single(apipe);
     }
     else
     {
-        external_run(cmd);
+        print_execute_error("Error al ejecutar el segundo fork\n");
     }
-    exit(EXIT_SUCCESS);
 }
 
-static void execute_process_father(pipeline apipe, int fd[2])
+static void select_mode_pipline(pipeline apipe)
 {
-    printf("Todo bien estoy esperando \n");
-    pid_t wait_response = wait(NULL);
-    printf("Todo bien ya espere \n");
-    if (wait_response == -1)
+    if (pipeline_length(apipe) == 1)
     {
-        print_execute_error("Ocurrio un error al ejecutar el wait()\n");
+        execute_command_single(apipe); // Ejecuta el comando, ya sea interno o externo si no existe un pipe (|)
     }
-
-    pipeline_pop_front(apipe); /* avanza al siguiente comando, en donde la entrada stdin de este comando
-                                       estará en el extremo de lectura del pipe, es decir fd[0] */
-
-    close(fd[1]);              // cierra el extremo de escritura del pipe (tuberia), ya que estamos con proceso padre
-    dup2(fd[0], STDIN_FILENO); // redirige la entrada standar (stdin) al extremo de lectura del pipe (tuberia).
-    close(fd[0]);              // cierra el extremo de lectura del pipe (tuberia)
-
-    execute_all_pipline(apipe); // Ejecuta el comando, ya sea interno o externo
-}
-
-static void wait_(void)
-{
-    pid_t wait_response_for_background = wait(NULL);
-    if (wait_response_for_background == -1)
-        print_execute_error("Ocurrio un error al ejecutar el wait()\n");
+    else if (pipeline_length(apipe) == 2)
+    {
+        execute_command_multipe(apipe);
+    }
+    else
+    {
+        print_execute_error("La terminal solo toma 2 comandos como maximo \n");
+    }
 }
 
 void execute_pipeline(pipeline apipe)
 {
+    printf("Me empiezo a ejecutar \n");
     assert(apipe != NULL);
-    char *string_pipline = pipeline_to_string(apipe);
-    printf("El pipline completo es : %s \n", string_pipline);
-    free(string_pipline);
-
     if (pipeline_get_wait(apipe))
     {
-        execute_all_pipline(apipe);
+        select_mode_pipline(apipe);
     }
     else
     {
-        pid_t pc_id_for_background = fork(); // Creamos un nuevo proceso para ejecutar todos los comandos.
-
-        if (pc_id_for_background == 0) // El hijo ejecuta la totalidad de los comandos
-        {
-            execute_all_pipline(apipe);
-        }
-        else if (pc_id_for_background > 0)
-        { // El padre es el encargado de decidir si espera o no al hijo
-            wait_();
-        }
-        else
-        { // Manejo de errores
-            print_execute_error("Ocurrio un error al ejecutar el primer fork()\n");
-        }
+        print_execute_error("Todavia no esta implementado el background \n");
     }
-
-    printf("Ya ejcute todo, me voy\n");
 }
 
 /*
 FALTAN MUCHAS COSAS:
  - Implementar la funcionalidad del pipe (Se tiene  que pasar el stdout al stdin del siguinte comando) (HECHO)
  - Implementar el manejo de in/out  de archivos (No esta hecho nada)
- - Arreglar CTL+D (Nose porque no anda despues de ejecutar cosas) (HECHO)
+ - Arreglar CTL+D (Nose porque no anda despues de ejecutar cosas)
 */
