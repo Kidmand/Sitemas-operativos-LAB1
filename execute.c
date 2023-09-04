@@ -57,9 +57,6 @@ static void scommand_exec(scommand cmd)
     {
         exit(EXIT_SUCCESS);
     }
-
-    // No deberia llegar aca
-    assert(false);
 }
 
 /* Funcion encargada de ejecutar un comando solo */
