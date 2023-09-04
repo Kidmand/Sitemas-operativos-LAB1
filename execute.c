@@ -37,6 +37,7 @@ static void external_run(scommand cmd)
 
     // Si sigue ejecutando es porque fallo
     print_execute_error("Fallo la ejecucion del proceso.");
+    exit(EXIT_SUCCESS);
 }
 
 static void execute_command_single(pipeline apipe)
@@ -65,6 +66,7 @@ static void execute_command_single(pipeline apipe)
     }
 }
 
+
 static void execute_command_multipe(pipeline apipe)
 {
     int fd[2];
@@ -80,16 +82,17 @@ static void execute_command_multipe(pipeline apipe)
 
     scommand firts_cmd = pipeline_front(apipe);
 
-    pid_t conection_pipe = fork();
+    pid_t conection_pipe1 = fork();
 
-    if (conection_pipe == 0)
+    if (conection_pipe1 == 0)
     {
         close(fd_read);                // cierra el extremo de lectura del pipe (tuberia), se lo conoce como read
         dup2(fd_write, STDOUT_FILENO); // redirige la salida standar (stdout) al extremo de escritura del pipe (tuberia).
-        close(fd_write);               // cierra el extremo de lectura del pipe (tuberia), se lo conoce como write
+                    // cierra el extremo de lectura del pipe (tuberia), se lo conoce como write
         if (builtin_is_internal(firts_cmd))
         {
             builtin_run(firts_cmd);
+
             exit(EXIT_SUCCESS);
         }
         else
@@ -97,27 +100,22 @@ static void execute_command_multipe(pipeline apipe)
             external_run(firts_cmd);
         }
     }
-    else if (conection_pipe > 0)
+     pid_t conection_pipe2 = fork();
+     if (conection_pipe2 == 0)
     {
-        pid_t wait_response = wait(NULL);
-
-        if (wait_response == -1)
-        {
-            print_execute_error("Ocurrio un error al ejecutar el wait()\n");
-        }
         pipeline_pop_front(apipe); /* avanza al siguiente comando, en donde la entrada stdin de este comando
                                        estará en el extremo de lectura del pipe, es decir fd[0] */
-
+                                       
         close(fd_write);             // cierra el extremo de escritura del pipe (tuberia), ya que estamos con proceso padre
-        dup2(fd_read, STDIN_FILENO); // redirige la entrada standar (stdin) al extremo de lectura del pipe (tuberia).
-        close(fd_read);              // cierra el extremo de lectura del pipe (tuberia)
+        dup2(fd_read, STDIN_FILENO); // redirige la entrada standar (stdin) al extremo de lectura del pipe (tuberia).   
+    
+        execute_command_single(apipe);  
+    }
+    close (fd[0]);
+    close (fd[1]);
 
-        execute_command_single(apipe);
-    }
-    else
-    {
-        print_execute_error("Error al ejecutar el segundo fork\n");
-    }
+    wait(NULL);
+    wait(NULL);
 }
 
 static void select_mode_pipline(pipeline apipe)
@@ -138,11 +136,12 @@ static void select_mode_pipline(pipeline apipe)
 
 void execute_pipeline(pipeline apipe)
 {
-    printf("Me empiezo a ejecutar \n");
     assert(apipe != NULL);
+
     if (pipeline_get_wait(apipe))
     {
         select_mode_pipline(apipe);
+    
     }
     else
     {
