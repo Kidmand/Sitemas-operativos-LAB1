@@ -103,43 +103,42 @@ static unsigned int execute_command_multipe(pipeline apipe)
     unsigned int active_child_processes = 0u;
 
     // Se crean los pipes
-    int pipesfd[2];
+    int fd[2];
 
     // Se abre el pipe
-    int res_pipe = pipe(pipesfd);
+    int res_pipe = pipe(fd);
     if (res_pipe < 0)
     {
         print_execute_error("Fallo el pipe");
         // se cierran los pipes que ya se abrieron para no generar bugs
-        close(pipesfd[0]);
-        close(pipesfd[1]);
+        close(fd[0]);
+        close(fd[1]);
         return active_child_processes;
     }
 
+    // Se obtienen los file descriptors para mejor legibilidad
+    int fd_read = fd[0];
+    int fd_write = fd[1];
     // Se generan el fork para el primer comando
     pid_t pid_first = fork();
     if (pid_first < 0)
     {
-        perror("error");
+        print_execute_error("Error con el fork");
     }
     if (pid_first == 0)
     {
-        // Si no es el ultimo comando
-        if (pipeline_length(apipe) > 1)
+        // Como no es el ultimo comando
+        close(fd_read); // cierra el extremo de lectura del pipe (tuberia), se lo conoce como read
+        int res_dup = dup2(fd_write, STDOUT_FILENO);
+        if (res_dup < 0)
         {
-            int res_dup = dup2(pipesfd[1], STDOUT_FILENO);
-            if (res_dup < 0)
-            {
-                perror("dup");
-                _exit(EXIT_FAILURE);
-            }
+            print_execute_error("Error con el dup");
+            _exit(EXIT_FAILURE);
         }
 
         // Se cierran todos los file descriptors que se usaron
-        for (unsigned int i = 0u; i < 2u; i++)
-        {
-            close(pipesfd[i]);
-        }
+        close(fd_read);
+        close(fd_write);
 
         // Se ejecuta el comando
         scommand_exec(pipeline_front(apipe));
@@ -155,23 +154,21 @@ static unsigned int execute_command_multipe(pipeline apipe)
     pid_t pid_second = fork();
     if (pid_second < 0)
     {
-        perror("error");
+        print_execute_error("Error con el fork");
     }
     if (pid_second == 0)
     {
 
-        int res_dup = dup2(pipesfd[0], STDIN_FILENO);
+        int res_dup = dup2(fd_read, STDIN_FILENO);
         if (res_dup < 0)
         {
-            perror("dup");
+            print_execute_error("Error con el dup");
             _exit(EXIT_FAILURE);
         }
 
         // Se cierran todos los file descriptors que se usaron
-        for (unsigned int i = 0u; i < 2u; i++)
-        {
-            close(pipesfd[i]);
-        }
+        close(fd_read);
+        close(fd_write);
 
         // Se ejecuta el comando
         scommand_exec(pipeline_front(apipe));
@@ -183,11 +180,9 @@ static unsigned int execute_command_multipe(pipeline apipe)
         active_child_processes++;
     }
 
-    // Se cierran los descriptores de archivo por completo
-    for (unsigned int i = 0u; i < 2u; i++)
-    {
-        close(pipesfd[i]);
-    }
+    // Se cierran todos los file descriptors que se usaron por completo
+    close(fd_read);
+    close(fd_write);
 
     return active_child_processes;
 }
