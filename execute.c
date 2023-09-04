@@ -26,7 +26,7 @@ static void wait_(void)
 }
 
 /* Funcion encargada de ejecutar programas externos*/
-static void external_run(scommand cmd)
+static void scommand_external_exec(scommand cmd)
 {
     assert(cmd != NULL);
 
@@ -37,12 +37,38 @@ static void external_run(scommand cmd)
 
     // Si sigue ejecutando es porque fallo
     print_execute_error("Fallo la ejecucion del proceso.");
-    exit(EXIT_SUCCESS);
 }
 
-static void execute_command_single(pipeline apipe)
+/* Funcion encargada de ejecutar un comando*/
+static void scommand_exec(scommand cmd)
+{
+    assert(cmd != NULL);
+
+    if (builtin_is_internal(cmd))
+    {
+        builtin_run(cmd);
+        exit(EXIT_SUCCESS);
+    }
+    else if (!scommand_is_empty(cmd))
+    {
+        scommand_external_exec(cmd);
+    }
+    else
+    {
+        exit(EXIT_SUCCESS);
+    }
+
+    // No deberia llegar aca
+    assert(false);
+}
+
+/* Funcion encargada de ejecutar un comando solo */
+static unsigned int execute_command_single(pipeline apipe)
 {
     scommand cmd = pipeline_front(apipe);
+
+    unsigned int active_child_processes = 0u;
+
     if (builtin_is_internal(cmd))
     {
         builtin_run(cmd);
@@ -53,99 +79,190 @@ static void execute_command_single(pipeline apipe)
 
         if (conection == 0)
         {
-            external_run(cmd);
+            scommand_exec(cmd);
         }
         else if (conection > 0)
         {
-            wait_();
+            active_child_processes++;
         }
         else
         {
             print_execute_error("Error al ejecutar el fork\n");
+            return active_child_processes;
         }
     }
+
+    return active_child_processes;
 }
 
-
-static void execute_command_multipe(pipeline apipe)
+/* Funcion encargada de ejecutar un pipeline de dos elementos*/
+static unsigned int execute_command_multipe(pipeline apipe)
 {
-    int fd[2];
+    assert(apipe != NULL && pipeline_length(apipe) >= 2u);
 
-    if (pipe(fd) == -1)
+    unsigned int active_child_processes = 0u;
+
+    unsigned int numberOfPipes = pipeline_length(apipe) - 1u;
+
+    bool error_flag = false;
+
+    // Se crean los pipes
+    int pipesfd[2];
+
+    // Se abre el pipe
+    int res_pipe = pipe(pipesfd);
+    if (res_pipe < 0)
     {
-        print_execute_error("Error al declarar la tuberiria pipe: \n");
-        exit(EXIT_SUCCESS);
+        print_execute_error("Fallo el pipe");
+        // se cierran los pipes que ya se abrieron para no generar bugs
+        close(pipesfd[0]);
+        close(pipesfd[1]);
+        return active_child_processes;
     }
 
-    int fd_read = fd[0];
-    int fd_write = fd[1];
+    unsigned int j = 0;
 
-    scommand firts_cmd = pipeline_front(apipe);
-
-    pid_t conection_pipe1 = fork();
-
-    if (conection_pipe1 == 0)
+    // Se generan los forks necesarios
+    while (!pipeline_is_empty(apipe) && !error_flag)
     {
-        close(fd_read);                // cierra el extremo de lectura del pipe (tuberia), se lo conoce como read
-        dup2(fd_write, STDOUT_FILENO); // redirige la salida standar (stdout) al extremo de escritura del pipe (tuberia).
-                    // cierra el extremo de lectura del pipe (tuberia), se lo conoce como write
-        if (builtin_is_internal(firts_cmd))
+        pid_t pid = fork();
+        if (pid < 0)
         {
-            builtin_run(firts_cmd);
+            perror("error");
+            error_flag = true; // Se corta el bucle
+        }
+        if (pid == 0)
+        {
+            // Si no es el ultimo comando
+            if (pipeline_length(apipe) > 1)
+            {
+                int res_dup = dup2(pipesfd[j + 1], STDOUT_FILENO);
+                if (res_dup < 0)
+                {
+                    perror("dup");
+                    _exit(EXIT_FAILURE);
+                }
+            }
 
+            // Si no es el primer comando
+            if (j != 0u)
+            {
+                int res_dup = dup2(pipesfd[j - 2u], STDIN_FILENO);
+                if (res_dup < 0)
+                {
+                    perror("dup");
+                    _exit(EXIT_FAILURE);
+                }
+            }
+
+            // Se cierran todos los file descriptors que se usaron
+            for (unsigned int i = 0u; i < 2u * numberOfPipes; i++)
+            {
+                close(pipesfd[i]);
+            }
+
+            // Se ejecuta el comando
+            scommand_exec(pipeline_front(apipe));
+        }
+        else if (pid > 0)
+        {
+            // Elimina un comando del pipe y aumenta el contador de procesos hijo
+            pipeline_pop_front(apipe);
+            j = j + 2u;
+            active_child_processes++;
+        }
+    }
+
+    // Se cierran los descriptores de archivo por completo
+    for (unsigned int i = 0u; i < 2u * numberOfPipes; i++)
+    {
+        close(pipesfd[i]);
+    }
+
+    return active_child_processes;
+}
+
+/* Funcion encargada de selecionar el modo de ejecucion de un pipeline*/
+static unsigned int select_mode_pipline(pipeline apipe)
+{
+    unsigned int active_child_processes = 0u;
+    if (pipeline_length(apipe) == 1)
+    {
+        active_child_processes = execute_command_single(apipe); // Ejecuta el comando, ya sea interno o externo si no existe un pipe (|)
+    }
+    else if (pipeline_length(apipe) == 2)
+    {
+        active_child_processes = execute_command_multipe(apipe);
+    }
+    else
+    {
+        print_execute_error("La terminal solo toma 2 comandos como maximo");
+    }
+    return active_child_processes;
+}
+
+/* Funcion encargada de ejecutar un pipeline en su totalidad*/
+void execute_pipeline(pipeline apipe)
+{
+    assert(apipe != NULL);
+    if (pipeline_get_wait(apipe))
+    {
+        unsigned int active_child_processes = select_mode_pipline(apipe);
+
+        // Se espera a que todos los hijos terminen
+        while (active_child_processes > 0u)
+        {
+            wait_();
+            active_child_processes--;
+        }
+    }
+    else
+    {
+        // Hay que correrlo en modo background
+        pid_t pid = fork();
+        if (pid < 0)
+        {
+            // Caso de que el fork falle
+            perror("fork");
+        }
+        else if (pid == 0)
+        {
+            // El proceso hijo
+
+            // Se conecta el stdin del hijo a un archivo vacio
+            /* Como archivo vacio se usa una punta de lectura de pipe
+               con punta de escritura cerrada */
+            int pipefds[2];
+            int res_pipe = pipe(pipefds);
+            if (res_pipe < 0)
+            {
+                perror("pipe");
+                exit(EXIT_FAILURE);
+            }
+            int punta_lectura = pipefds[0];
+            int punta_escritura = pipefds[1];
+
+            close(punta_escritura);
+
+            int res_dup2 = dup2(punta_lectura, STDIN_FILENO);
+            if (res_dup2 < 0)
+            {
+                perror("perror ");
+                exit(EXIT_FAILURE);
+            }
+
+            // Ejecuta todos los comandos del pipeline
+            select_mode_pipline(apipe);
+
+            // Y termina para que los hijos pasen a ser hijos del sistema
             exit(EXIT_SUCCESS);
         }
         else
         {
-            external_run(firts_cmd);
+            // El proceso padre
+            // Espera a que el hijo termine de crear todos los procesos
+            wait(NULL);
         }
-    }
-     pid_t conection_pipe2 = fork();
-     if (conection_pipe2 == 0)
-    {
-        pipeline_pop_front(apipe); /* avanza al siguiente comando, en donde la entrada stdin de este comando
-                                       estará en el extremo de lectura del pipe, es decir fd[0] */
-                                       
-        close(fd_write);             // cierra el extremo de escritura del pipe (tuberia), ya que estamos con proceso padre
-        dup2(fd_read, STDIN_FILENO); // redirige la entrada standar (stdin) al extremo de lectura del pipe (tuberia).   
-    
-        execute_command_single(apipe);  
-    }
-    close (fd[0]);
-    close (fd[1]);
-
-    wait(NULL);
-    wait(NULL);
-}
-
-static void select_mode_pipline(pipeline apipe)
-{
-    if (pipeline_length(apipe) == 1)
-    {
-        execute_command_single(apipe); // Ejecuta el comando, ya sea interno o externo si no existe un pipe (|)
-    }
-    else if (pipeline_length(apipe) == 2)
-    {
-        execute_command_multipe(apipe);
-    }
-    else
-    {
-        print_execute_error("La terminal solo toma 2 comandos como maximo \n");
-    }
-}
-
-void execute_pipeline(pipeline apipe)
-{
-    assert(apipe != NULL);
-
-    if (pipeline_get_wait(apipe))
-    {
-        select_mode_pipline(apipe);
-    
-    }
-    else
-    {
-        print_execute_error("Todavia no esta implementado el background \n");
     }
 }
 
@@ -153,5 +270,5 @@ void execute_pipeline(pipeline apipe)
 FALTAN MUCHAS COSAS:
  - Implementar la funcionalidad del pipe (Se tiene  que pasar el stdout al stdin del siguinte comando) (HECHO)
  - Implementar el manejo de in/out  de archivos (No esta hecho nada)
- - Arreglar CTL+D (Nose porque no anda despues de ejecutar cosas)
+ - Arreglar CTL+D (HECHO)
 */
