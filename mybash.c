@@ -16,10 +16,23 @@ static void show_prompt(void)
     char pwd[1024];
     getcwd(pwd, sizeof(pwd));
     strcat(pwd, "$");
-    //  strcat (mybash,"$");
+    printf("\x1b[36m");
+    printf("\x1b[1m");
+    printf("%s", "Daian ");
+    printf("\x1b[33m");
+    printf("\x1b[1m");
+    printf("%s", "Mora ");
+    printf("\x1b[35m");
+    printf("\x1b[1m");
+    printf("%s", "Ramiro ");
+    printf("\x1b[31m");
+    printf("\x1b[1m");
+    printf("%s", "Matias\n");
     printf("\x1b[32m");
+    printf("\x1b[1m");
     printf("%s", mybash);
     printf("\x1b[34m");
+    printf("\x1b[1m");
     printf("%s ", pwd);
     printf("\x1b[0m");
 
