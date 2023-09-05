@@ -98,12 +98,14 @@ void scommand_pop_front(scommand self)
 void scommand_set_redir_in(scommand self, char *filename)
 {
     assert(self != NULL);
+    free(self->redir_in);
     self->redir_in = filename;
 }
 
 void scommand_set_redir_out(scommand self, char *filename)
 {
     assert(self != NULL);
+    free(self->redir_out);
     self->redir_out = filename;
 }
 
@@ -154,7 +156,8 @@ char *scommand_to_string(const scommand self)
     assert(self != NULL);
     char *result = strdup("");
 
-    for (unsigned i = 0; i<scommand_length(self); i++) {
+    for (unsigned i = 0; i < scommand_length(self); i++)
+    {
         result = strconcat(result, g_list_nth_data(self->args, i));
         result = strconcat(result, " ");
     }
