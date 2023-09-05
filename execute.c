@@ -20,9 +20,10 @@ static void print_execute_error(char *message)
 }
 
 /* Función para los mensajes de error del wait */
-static void wait_(void)
+static void wait_(int pc_id)
 {
-    pid_t wait_response_for_background = wait(NULL);
+    pid_t wait_response_for_background = wait(&pc_id);
+
     if (wait_response_for_background == -1)
         print_execute_error("Ocurrio un error al ejecutar el wait()\n");
 }
@@ -175,41 +176,41 @@ static unsigned int execute_command_multipe(pipeline apipe)
         // Elimina un comando del pipe y aumenta el contador de procesos hijo
         pipeline_pop_front(apipe);
         active_child_processes++;
-    }
 
-    // Se generan el fork para el segundo comando
-    pid_t pid_second = fork();
-    if (pid_second < 0)
-    {
-        print_execute_error("Error con el fork");
-    }
-    if (pid_second == 0)
-    {
-
-        int res_dup = dup2(fd_read, STDIN_FILENO);
-        if (res_dup < 0)
+        // Se generan el fork para el segundo comando
+        pid_t pid_second = fork();
+        if (pid_second < 0)
         {
-            print_execute_error("Error con el dup");
-            _exit(EXIT_FAILURE);
+            print_execute_error("Error con el fork");
+        }
+        if (pid_second == 0)
+        {
+
+            int res_dup = dup2(fd_read, STDIN_FILENO);
+            if (res_dup < 0)
+            {
+                print_execute_error("Error con el dup");
+                _exit(EXIT_FAILURE);
+            }
+
+            // Se cierran todos los file descriptors que se usaron
+            close(fd_read);
+            close(fd_write);
+
+            // Se ejecuta el comando
+            scommand_exec(pipeline_front(apipe));
+        }
+        else if (pid_second > 0)
+        {
+            // Elimina un comando del pipe y aumenta el contador de procesos hijo
+            pipeline_pop_front(apipe);
+            active_child_processes++;
         }
 
-        // Se cierran todos los file descriptors que se usaron
+        // Se cierran todos los file descriptors que se usaron por completo
         close(fd_read);
         close(fd_write);
-
-        // Se ejecuta el comando
-        scommand_exec(pipeline_front(apipe));
     }
-    else if (pid_second > 0)
-    {
-        // Elimina un comando del pipe y aumenta el contador de procesos hijo
-        pipeline_pop_front(apipe);
-        active_child_processes++;
-    }
-
-    // Se cierran todos los file descriptors que se usaron por completo
-    close(fd_read);
-    close(fd_write);
 
     return active_child_processes;
 }
@@ -244,7 +245,7 @@ void execute_pipeline(pipeline apipe)
         // Se espera a que todos los hijos terminen uno por uno
         while (active_child_processes > 0u)
         {
-            wait_();
+            wait_(active_child_processes);
             active_child_processes--;
         }
     }
@@ -289,15 +290,5 @@ void execute_pipeline(pipeline apipe)
             // Y termina para que los hijos pasen a ser hijos del sistema
             exit(EXIT_SUCCESS);
         }
-        else
-        {
-            // Espera a que el hijo termine
-            wait_();
-        }
     }
 }
-
-/*
-FALTAN:
- - Implementar el manejo de in/out  de archivos (No esta hecho nada)
-*/
