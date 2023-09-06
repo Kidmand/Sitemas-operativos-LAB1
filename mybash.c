@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     pipeline pipe = NULL;
     Parser input = NULL;
 
-    exit_mybash = false;
+    bool exit_mybash = false;
 
     input = parser_new(stdin);
     while (!exit_mybash)

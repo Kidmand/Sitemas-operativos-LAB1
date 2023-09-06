@@ -5,9 +5,6 @@
 
 #include "command.h"
 
-/* Variable global para volver true cuando el mybash se tiene que terminar */
-extern volatile bool exit_mybash;
-
 bool builtin_is_internal(scommand cmd);
 /*
  * Indica si el comando alojado en `cmd` es un comando interno

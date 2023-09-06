@@ -1,170 +1,146 @@
-#include <stdbool.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <unistd.h>
 
-#include "command.h"
 #include "builtin.h"
+#include "command.h"
+#include "strextra.h"
 #include "tests/syscall_mock.h"
 
-static const char *internal_commands[] = {"cd", "help", "exit", "pwd"};
+// exit -----------------------------------------------------------
 
-volatile bool exit_mybash = false;
-
-// Funciones auxiliares:
-
-static void print_internal_cmf_error(char *message) /* Imprime por pantalla el error que se mande por "message"*/
+static bool builtin_scommand_is_exit(const scommand cmd)
 {
-    printf("ERROR con los comandos internos: %s\n", message);
+    assert(cmd != NULL);
+
+    return strcmp(scommand_front(cmd), "exit") == 0;
 }
 
-static unsigned int internal_length(const char *internal_commands[]) // Devuelve el numero de comandos internos
+static void builtin_run_exit(const scommand cmd)
 {
-    unsigned int length = 0;
-    while (internal_commands[length] != NULL)
-    {
-        length++;
-    }
-    return length;
+    assert(cmd != NULL && builtin_scommand_is_exit(cmd));
+
+    _exit(EXIT_SUCCESS);
 }
 
-static bool is_internal(char *comando) // Devuelve true si es un comando interno
+// cd  -----------------------------------------------------------
+static bool builtin_scommand_is_cd(const scommand cmd)
 {
-    bool b = false;
+    assert(cmd != NULL);
+    return strcmp(scommand_front(cmd), "cd") == 0;
+    // Si son iguales strcmp devuelve 0
+}
 
-    unsigned int length = internal_length(internal_commands);
+static void builtin_run_cd(const scommand cmd)
+{
+    assert(cmd != NULL && builtin_scommand_is_cd(cmd));
 
-    for (unsigned int i = 0; i < length; i++)
+    unsigned int length = scommand_length(cmd);
+    if (length <= 2u)
     {
-        if (strcmp(comando, internal_commands[i]) == 0)
+
+        char *input_path = NULL;
+        unsigned int path_length = 0u;
+        if (length > 1u)
         {
-            b = true;
-            i = length;
+            scommand_pop_front(cmd);
+            input_path = scommand_front(cmd);
+            path_length = strlen(input_path);
         }
-    }
-    return b;
-}
+        int ret_code = 0;
+        char *home_path = getenv("HOME");
 
-static unsigned int directory_count(char *str)
-{
-    assert(str != NULL);
-    unsigned int count = 0, i = 0;
-    while (str[i] != '\0')
-    {
-        if (str[i] == '/')
+        /* Si el argumento de chdir comienza con / el path se toma desde equipo
+           (ósea como path absoluto) y si empieza con ./ o sin nada se toma desde
+           el directorio actual. También, chdir acepta .. para ir un directorio
+           para arriba.
+        */
+
+        if (path_length > 1u)
         {
-            count = count + 1;
+            char *relative_path = NULL;
+            char *full_path = NULL;
+            if (input_path[0] == '~' && input_path[1] == '/' &&
+                home_path != NULL)
+            {
+                /* Caso en el que el ~ es seguido por un /, por ejemplo ~/Documentos, esto
+                se considera como un directorio relativo al directorio principal.
+                */
+                relative_path = &input_path[1];
+                full_path = strmerge(home_path, relative_path);
+
+                ret_code = chdir(full_path);
+            }
+            else if (input_path[0] == '\'' && input_path[1] == '~' &&
+                     input_path[2] == '\'')
+            {
+                relative_path = &input_path[3];
+                full_path = strmerge("~", relative_path);
+                ret_code = chdir(full_path);
+                if (ret_code != 0)
+                {
+                    ret_code = chdir(input_path);
+                }
+            }
+            else
+            {
+                /* Maneja cualquier caso en el que no se encuentre un ~ o '~' antes de /
+                 */
+                ret_code = chdir(input_path);
+            }
+            free(full_path);
+            full_path = NULL;
         }
-        i++;
-    }
-    assert(count > 0);
-    return count;
-}
-
-static unsigned int puntito_count(char *str)
-{
-    assert(str != NULL);
-    unsigned int count = 0, i = 0;
-    while (str[i] != '\0')
-    {
-        if (str[i] == '.')
+        else
         {
-            count = count + 1;
+            if (input_path == NULL || input_path[0] == '~' ||
+                strcmp(input_path, "") == 0)
+            {
+                if (home_path == NULL)
+                {
+                    ret_code = chdir("~");
+                }
+                else
+                {
+                    ret_code = chdir(home_path);
+                }
+            }
+            else
+            {
+                ret_code = chdir(input_path);
+            }
         }
-        i++;
-    }
-    return count;
-}
-
-static bool todos_puntos(char *str)
-{
-    assert(str != NULL);
-    unsigned int i = 0;
-    bool b = true;
-    while (b && str[i] != '\0')
-    {
-        if (str[i] != '.')
+        if (ret_code != 0)
         {
-            b = false;
-        }
-        i++;
-    }
-    return b;
-}
-
-// Funciones de ejecucion de comandos internos:
-
-static int f_cd_solo(void)
-{
-    char *directory;
-    int result = 0;
-    char currentDir[1024];
-
-    getcwd(currentDir, sizeof(currentDir));
-    unsigned int n_puntitos = directory_count(currentDir);
-
-    if (n_puntitos > 0)
-    {
-        directory = "..";
-        while (n_puntitos > 0)
-        {
-            result = chdir(directory);
-            n_puntitos = n_puntitos - 1;
+            /* La función chdir deja un mensaje en algún lado, con perror se puede
+               imprimir el último mensaje, por lo cuál, en caso de error se la usa.
+               perror toma un string, e imprime primero ese string, y después el
+               mensaje de error. man perror para mas información
+            */
+            perror("mybash: cd");
         }
     }
     else
     {
-        directory = currentDir;
-        result = chdir(directory);
+        printf("mybash: cd: demasiados argumentos\n");
     }
-    return result;
 }
 
-static void f_cd(scommand args)
+// help -----------------------------------------------------------
+static bool builtin_scommand_is_help(const scommand cmd)
 {
-    char *directory = NULL;
-    int result;
-
-    if (scommand_length(args) > 1) // Error, hay mas de un argumento
-    {
-        print_internal_cmf_error("El comando 'cd' unicamente recibe un argumento.");
-    }
-    else if (args == NULL || scommand_is_empty(args)) // se paso el cd solo
-    {
-        result = f_cd_solo();
-    }
-    else // Hay un argumento
-    {
-        directory = scommand_front(args);
-        unsigned int n_puntitos = puntito_count(directory);
-
-        if (n_puntitos > 1 && todos_puntos(directory))
-        {
-            while (n_puntitos - 1 > 0)
-            {
-                result = chdir("..");
-                n_puntitos = result == 0 ? n_puntitos - 1 : 0;
-            }
-        }
-        else
-        {
-            result = chdir(directory);
-        }
-    }
-
-    if (result != 0)
-    {
-        print_internal_cmf_error("Error al cambiar el directorio de trabajo");
-    }
+    assert(cmd != NULL);
+    return strcmp(scommand_front(cmd), "help") == 0;
+    // Si son iguales strcmp devuelve 0
 }
 
-static void f_help(scommand args)
+static void builtin_run_help(scommand args)
 {
     if (scommand_length(args) > 1)
     {
-        print_internal_cmf_error("El comando 'help' no recibe argumentos.");
+        perror("El comando 'help' no recibe argumentos.");
     }
     else
     {
@@ -178,74 +154,29 @@ static void f_help(scommand args)
     }
 }
 
-static void f_exit(scommand args)
+// Chequeo
+
+bool builtin_is_internal(const scommand cmd)
 {
-    if (scommand_length(args) > 1)
+    assert(cmd != NULL);
+    return builtin_scommand_is_exit(cmd) || builtin_scommand_is_cd(cmd) || builtin_scommand_is_help(cmd);
+}
+
+// Ejecución
+
+void builtin_run(const scommand cmd)
+{
+    assert(cmd != NULL && builtin_is_internal(cmd));
+    if (builtin_scommand_is_cd(cmd))
     {
-        print_internal_cmf_error("El comando 'exit' no recibe argumentos.");
+        builtin_run_cd(cmd);
+    }
+    else if (builtin_scommand_is_help(cmd))
+    {
+        builtin_run_help(cmd);
     }
     else
     {
-        exit_mybash = true;
-    }
-}
-
-static void f_pwd(scommand args)
-{
-    if (scommand_length(args) > 1)
-    {
-        print_internal_cmf_error("El comando 'pwd' no recibe argumentos.");
-    }
-    else
-    {
-        char currentDir[1024];
-        getcwd(currentDir, sizeof(currentDir));
-        printf("%s\n", currentDir);
-    }
-}
-
-// Funciones del TAD:
-
-bool builtin_is_internal(scommand cmd)
-{
-
-    assert(!scommand_is_empty(cmd));
-
-    char *comando = scommand_front(cmd);
-
-    return is_internal(comando);
-}
-
-bool builtin_alone(pipeline p)
-{
-
-    assert(!pipeline_is_empty(p));
-
-    return pipeline_length(p) == 1 && builtin_is_internal(pipeline_front(p));
-}
-
-void builtin_run(scommand cmd)
-{
-
-    assert(builtin_is_internal(cmd));
-
-    char *comando = scommand_front(cmd);
-
-    if (strcmp(comando, internal_commands[0]) == 0)
-    {
-        scommand_pop_front(cmd); // cmd solo contiene los argumentos ahora
-        f_cd(cmd);
-    }
-    else if (strcmp(comando, internal_commands[1]) == 0)
-    {
-        f_help(cmd);
-    }
-    else if (strcmp(comando, internal_commands[2]) == 0)
-    {
-        f_exit(cmd);
-    }
-    else if (strcmp(comando, internal_commands[3]) == 0)
-    {
-        f_pwd(cmd);
+        builtin_run_exit(cmd);
     }
 }
