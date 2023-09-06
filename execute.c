@@ -13,6 +13,9 @@
 #include "builtin.h"
 #include "tests/syscall_mock.h"
 
+#define READ_END 0  /* index pipe extremo escritura */
+#define WRITE_END 1 /* index pipe extremo lectura */
+
 /* Función para los mensajes de error */
 static void print_execute_error(char *message)
 {
@@ -68,6 +71,8 @@ static void scommand_external_exec(scommand cmd)
 
     // Si sigue ejecutando es porque fallo
     print_execute_error("Fallo la ejecucion del proceso.");
+
+    exit(EXIT_FAILURE);
 }
 
 /* Funcion encargada de ejecutar un comando*/
@@ -91,11 +96,9 @@ static void scommand_exec(scommand cmd)
 }
 
 /* Funcion encargada de ejecutar un comando solo */
-static unsigned int execute_command_single(pipeline apipe)
+static void execute_command_single(pipeline apipe)
 {
     scommand cmd = pipeline_front(apipe);
-
-    unsigned int active_child_processes = 0u;
 
     if (builtin_is_internal(cmd))
     {
@@ -105,30 +108,27 @@ static unsigned int execute_command_single(pipeline apipe)
     {
         pid_t conection = fork();
 
-        if (conection == 0)
+        if (conection == 0) // Es el hijo
         {
             scommand_exec(cmd);
         }
-        else if (conection > 0)
+        else if (conection > 0) // Es el padre
         {
-            active_child_processes++;
+            wait_(conection);
         }
         else
         {
             print_execute_error("Error al ejecutar el fork\n");
-            return active_child_processes;
         }
     }
-
-    return active_child_processes;
 }
 
 /* Funcion encargada de ejecutar un pipeline de dos elementos*/
-static unsigned int execute_command_multipe(pipeline apipe)
+static void execute_command_multipe(pipeline apipe)
 {
     assert(apipe != NULL && pipeline_length(apipe) >= 2u);
 
-    unsigned int active_child_processes = 0u;
+    /* ---- INICIALIZA EL PIPE ----*/
 
     // Se crean los pipes
     int fd[2];
@@ -141,14 +141,13 @@ static unsigned int execute_command_multipe(pipeline apipe)
         // se cierran los pipes que ya se abrieron para no generar bugs
         close(fd[0]);
         close(fd[1]);
-        return active_child_processes;
     }
 
-    // Se obtienen los file descriptors para mejor legibilidad
-    int fd_read = fd[0];
-    int fd_write = fd[1];
+    /* ---- FINALIZA LA INICIALIZCION DEL PIPE ----*/
+
     // Se generan el fork para el primer comando
     pid_t pid_first = fork();
+
     if (pid_first < 0)
     {
         print_execute_error("Error con el fork");
@@ -156,8 +155,9 @@ static unsigned int execute_command_multipe(pipeline apipe)
     if (pid_first == 0)
     {
         // Como no es el ultimo comando
-        close(fd_read); // cierra el extremo de lectura del pipe (tuberia), se lo conoce como read
-        int res_dup = dup2(fd_write, STDOUT_FILENO);
+        close(fd[READ_END]); // cierra el extremo de lectura del pipe (tuberia), se lo conoce como read
+
+        int res_dup = dup2(fd[WRITE_END], STDOUT_FILENO);
         if (res_dup < 0)
         {
             print_execute_error("Error con el dup");
@@ -165,20 +165,28 @@ static unsigned int execute_command_multipe(pipeline apipe)
         }
 
         // Se cierran todos los file descriptors que se usaron
-        close(fd_read);
-        close(fd_write);
+        close(fd[WRITE_END]);
 
         // Se ejecuta el comando
         scommand_exec(pipeline_front(apipe));
     }
     else if (pid_first > 0)
     {
+        // El padre espera al primer comaando ejecutado
+        pid_t wait_pid_first = wait(&pid_first);
+        if (wait_pid_first == -1)
+        {
+            print_execute_error("Ocurrio un error al ejecutar el wait() del primero comando\n");
+        }
+
+        close(fd[WRITE_END]);
+
         // Elimina un comando del pipe y aumenta el contador de procesos hijo
         pipeline_pop_front(apipe);
-        active_child_processes++;
 
         // Se generan el fork para el segundo comando
         pid_t pid_second = fork();
+
         if (pid_second < 0)
         {
             print_execute_error("Error con el fork");
@@ -186,7 +194,7 @@ static unsigned int execute_command_multipe(pipeline apipe)
         if (pid_second == 0)
         {
 
-            int res_dup = dup2(fd_read, STDIN_FILENO);
+            int res_dup = dup2(fd[READ_END], STDIN_FILENO);
             if (res_dup < 0)
             {
                 print_execute_error("Error con el dup");
@@ -194,44 +202,42 @@ static unsigned int execute_command_multipe(pipeline apipe)
             }
 
             // Se cierran todos los file descriptors que se usaron
-            close(fd_read);
-            close(fd_write);
+            close(fd[READ_END]);
 
             // Se ejecuta el comando
             scommand_exec(pipeline_front(apipe));
         }
         else if (pid_second > 0)
         {
+            // El padre espera al segundo comando ejecutado
+            pid_t wait_pid_second = wait(&pid_second);
+            if (wait_pid_second == -1)
+                print_execute_error("Ocurrio un error al ejecutar el wait() del segundo comando\n");
+
             // Elimina un comando del pipe y aumenta el contador de procesos hijo
             pipeline_pop_front(apipe);
-            active_child_processes++;
+            // Se cierran todos los file descriptors que se usaron por completo
+            close(fd[READ_END]);
+            close(fd[WRITE_END]);
         }
-
-        // Se cierran todos los file descriptors que se usaron por completo
-        close(fd_read);
-        close(fd_write);
     }
-
-    return active_child_processes;
 }
 
 /* Funcion encargada de selecionar el modo de ejecucion de un pipeline*/
-static unsigned int select_mode_pipline(pipeline apipe)
+static void select_mode_pipline(pipeline apipe)
 {
-    unsigned int active_child_processes = 0u;
     if (pipeline_length(apipe) == 1)
     {
-        active_child_processes = execute_command_single(apipe); // Ejecuta el comando, ya sea interno o externo si no existe un pipe (|)
+        execute_command_single(apipe); // Ejecuta el comando, ya sea interno o externo si no existe un pipe (|)
     }
     else if (pipeline_length(apipe) == 2)
     {
-        active_child_processes = execute_command_multipe(apipe);
+        execute_command_multipe(apipe);
     }
     else
     {
         print_execute_error("La terminal solo toma 2 comandos como maximo");
     }
-    return active_child_processes;
 }
 
 /* Funcion encargada de ejecutar un pipeline en su totalidad*/
@@ -240,14 +246,7 @@ void execute_pipeline(pipeline apipe)
     assert(apipe != NULL);
     if (pipeline_get_wait(apipe))
     {
-        unsigned int active_child_processes = select_mode_pipline(apipe);
-
-        // Se espera a que todos los hijos terminen uno por uno
-        while (active_child_processes > 0u)
-        {
-            wait_(active_child_processes);
-            active_child_processes--;
-        }
+        select_mode_pipline(apipe);
     }
     else
     {
