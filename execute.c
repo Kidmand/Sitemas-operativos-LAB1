@@ -175,14 +175,6 @@ static void execute_command_multipe(pipeline apipe)
     }
     else if (pid_first > 0)
     {
-        // El padre espera al primer comando ejecutado
-        pid_t wait_pid_first = waitpid(pid_first, &status, 0);
-        if (wait_pid_first == -1)
-        {
-            perror("Ocurrio un error al ejecutar el wait() del primero comando");
-        }
-
-        close(fd[WRITE_END]);
 
         // Elimina un comando del pipe y aumenta el contador de procesos hijo
         pipeline_pop_front(apipe);
@@ -196,6 +188,8 @@ static void execute_command_multipe(pipeline apipe)
         }
         if (pid_second == 0)
         {
+            close(fd[WRITE_END]);
+
             int res_dup = dup2(fd[READ_END], STDIN_FILENO);
             if (res_dup < 0)
             {
@@ -214,6 +208,12 @@ static void execute_command_multipe(pipeline apipe)
         }
         else if (pid_second > 0)
         {
+            // El padre espera al primer comando ejecutado
+            pid_t wait_pid_first = waitpid(pid_first, &status, 0);
+            if (wait_pid_first == -1)
+            {
+                perror("Ocurrio un error al ejecutar el wait() del primero comando");
+            }
             // El padre espera al segundo comando ejecutado
             pid_t wait_pid_second = waitpid(pid_second, &status, 0);
             if (wait_pid_second == -1)
