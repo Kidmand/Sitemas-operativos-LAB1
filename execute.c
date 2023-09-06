@@ -132,6 +132,7 @@ static void execute_command_multipe(pipeline apipe)
 
     // Se crean los pipes
     int fd[2];
+    int status;
 
     // Se abre el pipe
     int res_pipe = pipe(fd);
@@ -154,8 +155,7 @@ static void execute_command_multipe(pipeline apipe)
     }
     if (pid_first == 0)
     {
-        // Como no es el ultimo comando
-        close(fd[READ_END]); // cierra el extremo de lectura del pipe (tuberia), se lo conoce como read
+        close(fd[READ_END]); // cierra el extremo de lectura del pipe (tuberia) porque no se usara
 
         int res_dup = dup2(fd[WRITE_END], STDOUT_FILENO);
         if (res_dup < 0)
@@ -164,19 +164,22 @@ static void execute_command_multipe(pipeline apipe)
             _exit(EXIT_FAILURE);
         }
 
-        // Se cierran todos los file descriptors que se usaron
+        // Se cierran el extremo escritura del pipe
         close(fd[WRITE_END]);
 
         // Se ejecuta el comando
         scommand_exec(pipeline_front(apipe));
+
+        // Asegura que el proceso hijo termine adecuadamente
+        exit(EXIT_SUCCESS);
     }
     else if (pid_first > 0)
     {
-        // El padre espera al primer comaando ejecutado
-        pid_t wait_pid_first = wait(&pid_first);
+        // El padre espera al primer comando ejecutado
+        pid_t wait_pid_first = waitpid(pid_first, &status, 0);
         if (wait_pid_first == -1)
         {
-            print_execute_error("Ocurrio un error al ejecutar el wait() del primero comando\n");
+            perror("Ocurrio un error al ejecutar el wait() del primero comando");
         }
 
         close(fd[WRITE_END]);
@@ -193,7 +196,6 @@ static void execute_command_multipe(pipeline apipe)
         }
         if (pid_second == 0)
         {
-
             int res_dup = dup2(fd[READ_END], STDIN_FILENO);
             if (res_dup < 0)
             {
@@ -206,13 +208,16 @@ static void execute_command_multipe(pipeline apipe)
 
             // Se ejecuta el comando
             scommand_exec(pipeline_front(apipe));
+
+            // Asegura que el proceso hijo termine adecuadamente
+            exit(EXIT_SUCCESS);
         }
         else if (pid_second > 0)
         {
             // El padre espera al segundo comando ejecutado
-            pid_t wait_pid_second = wait(&pid_second);
+            pid_t wait_pid_second = waitpid(pid_second, &status, 0);
             if (wait_pid_second == -1)
-                print_execute_error("Ocurrio un error al ejecutar el wait() del segundo comando\n");
+                perror("Ocurrio un error al ejecutar el wait() del segundo comando\n");
 
             // Elimina un comando del pipe y aumenta el contador de procesos hijo
             pipeline_pop_front(apipe);
