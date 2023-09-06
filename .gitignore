@@ -4,3 +4,6 @@ mybash
 
 .vscode
 .depend
+
+test.log
+runner
