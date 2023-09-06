@@ -26,6 +26,29 @@ static void builtin_run_exit(const scommand cmd)
 }
 
 // cd  -----------------------------------------------------------
+static unsigned int puntito_count(char *str) {
+    assert(str!=NULL);
+    unsigned int i=0;
+    while (str[i] == '.') {
+        i++;
+    }
+    return i;
+}
+
+static bool todos_puntitos(char *str) {
+    assert(str!=NULL);
+    unsigned int i=0;
+    bool b = true;
+    while (b && str[i] != '\0') {
+        if (str[i] != '.')
+        {
+            b = false;
+        }
+        i++;
+    }
+    return b;
+}
+
 static bool builtin_scommand_is_cd(const scommand cmd)
 {
     assert(cmd != NULL);
@@ -37,6 +60,7 @@ static void builtin_run_cd(const scommand cmd)
 {
     assert(cmd != NULL && builtin_scommand_is_cd(cmd));
 
+   
     unsigned int length = scommand_length(cmd);
     if (length <= 2u)
     {
@@ -86,9 +110,21 @@ static void builtin_run_cd(const scommand cmd)
             }
             else
             {
-                /* Maneja cualquier caso en el que no se encuentre un ~ o '~' antes de /
-                 */
-                ret_code = chdir(input_path);
+                /* Maneja cualquier caso en el que no se encuentre un ~ o '~' antes de /, por ejemplo: cd .. */
+                
+                if (todos_puntitos(input_path))
+                {
+                    unsigned int n_puntitos = puntito_count(input_path);
+                    unsigned int i = 0;
+                    while (ret_code == 0 && i < n_puntitos - 1)
+                    {
+                        ret_code = chdir("..");
+                        i = i + 1;
+                    }
+                    
+                } else {
+                    ret_code = chdir(input_path);
+                }
             }
             free(full_path);
             full_path = NULL;
