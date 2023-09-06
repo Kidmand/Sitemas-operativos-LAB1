@@ -15,6 +15,7 @@
 
 #define READ_END 0  /* index pipe extremo escritura */
 #define WRITE_END 1 /* index pipe extremo lectura */
+#define NUM_PROCESS 10
 
 /* Función para los mensajes de error */
 static void print_execute_error(char *message)
@@ -127,13 +128,64 @@ static void execute_command_single(pipeline apipe)
 static void execute_command_multipe(pipeline apipe)
 {
     assert(apipe != NULL && pipeline_length(apipe) >= 2u);
+    int length = pipeline_length(apipe);
 
     /* ---- INICIALIZA EL PIPE ----*/
 
     // Se crean los pipes
-    int fd[2];
+    pid_t pipes_fd[NUM_PROCESS][2];
 
-    // Se abre el pipe
+    for (int i=0; i<length; i++) {
+        if(pipe(pipes_fd[i]) == -1) {
+            printf("Error al crear el pipe\n");
+        }
+    }
+    
+    pid_t pid_ids[NUM_PROCESS];
+    int j=1; 
+    int p=0;
+
+    for (int i=0; i<length; i++) {
+
+        pid_ids[i] = fork();
+
+        if (pid_ids[i] == 0) {
+            if (i > 0) {
+                // Redirección del stdin desde el extremo de lectura del pipe anterior
+                close(pipes_fd[j][1]);
+                dup2(pipes_fd[j][0], STDIN_FILENO);
+                close(pipes_fd[j][0]);
+                j+=2;
+                scommand_exec(pipeline_front(apipe));
+            }
+
+            if (i < length-1 ) {
+                // Redirección del stdout al extremo de escritura del pipe actual
+                
+                close(pipes_fd[p][0]);
+                dup2(pipes_fd[p][1], STDOUT_FILENO);
+                close(pipes_fd[p][1]);
+                p+=2;
+                printf("Esto se ejecuta?");
+                scommand_exec(pipeline_front(apipe));
+            }
+
+        } else if (pid_ids[i] > 0) { 
+         pipeline_pop_front(apipe);
+    }
+
+    for (int i = 0; i < length - 1; i++) {
+        close(pipes_fd[i][0]);
+        close(pipes_fd[i][1]);
+    }
+
+    // Esperar a que los procesos hijos terminen
+    for (int i = 0; i < length; i++) {
+        wait(&pid_ids[i]);
+      }
+
+    }
+   /* // Se abre el pipe
     int res_pipe = pipe(fd);
     if (res_pipe < 0)
     {
@@ -143,7 +195,7 @@ static void execute_command_multipe(pipeline apipe)
         close(fd[1]);
     }
 
-    /* ---- FINALIZA LA INICIALIZCION DEL PIPE ----*/
+    // ---- FINALIZA LA INICIALIZCION DEL PIPE ----
 
     // Se generan el fork para el primer comando
     pid_t pid_first = fork();
@@ -220,7 +272,7 @@ static void execute_command_multipe(pipeline apipe)
             close(fd[READ_END]);
             close(fd[WRITE_END]);
         }
-    }
+    }*/
 }
 
 /* Funcion encargada de selecionar el modo de ejecucion de un pipeline*/
@@ -230,7 +282,7 @@ static void select_mode_pipline(pipeline apipe)
     {
         execute_command_single(apipe); // Ejecuta el comando, ya sea interno o externo si no existe un pipe (|)
     }
-    else if (pipeline_length(apipe) == 2)
+    else if (pipeline_length(apipe) >=2)
     {
         execute_command_multipe(apipe);
     }
