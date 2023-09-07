@@ -26,20 +26,24 @@ static void builtin_run_exit(const scommand cmd)
 }
 
 // cd  -----------------------------------------------------------
-static unsigned int puntito_count(char *str) {
-    assert(str!=NULL);
-    unsigned int i=0;
-    while (str[i] == '.') {
+static unsigned int puntito_count(char *str)
+{
+    assert(str != NULL);
+    unsigned int i = 0;
+    while (str[i] == '.')
+    {
         i++;
     }
     return i;
 }
 
-static bool todos_puntitos(char *str) {
-    assert(str!=NULL);
-    unsigned int i=0;
+static bool todos_puntitos(char *str)
+{
+    assert(str != NULL);
+    unsigned int i = 0;
     bool b = true;
-    while (b && str[i] != '\0') {
+    while (b && str[i] != '\0')
+    {
         if (str[i] != '.')
         {
             b = false;
@@ -60,7 +64,6 @@ static void builtin_run_cd(const scommand cmd)
 {
     assert(cmd != NULL && builtin_scommand_is_cd(cmd));
 
-   
     unsigned int length = scommand_length(cmd);
     if (length <= 2u)
     {
@@ -111,7 +114,7 @@ static void builtin_run_cd(const scommand cmd)
             else
             {
                 /* Maneja cualquier caso en el que no se encuentre un ~ o '~' antes de /, por ejemplo: cd .. */
-                
+
                 if (todos_puntitos(input_path))
                 {
                     unsigned int n_puntitos = puntito_count(input_path);
@@ -121,8 +124,9 @@ static void builtin_run_cd(const scommand cmd)
                         ret_code = chdir("..");
                         i = i + 1;
                     }
-                    
-                } else {
+                }
+                else
+                {
                     ret_code = chdir(input_path);
                 }
             }
@@ -184,7 +188,6 @@ static void builtin_run_help(scommand args)
         printf("Autores : Ramiro, Matias, Mora, Daian.\n\n");
         printf("Comandos Internos:\n");
         printf("  - cd   : Recibe una ruta donde moverse desde el directorio actual.\n");
-        printf("  - pwd  : Imprime el directorio de trabajo actual. \n");
         printf("  - help : Proporciona informacion al usuario sobre los comandos disponibles.\n");
         printf("  - exit : La terminal finaliza de forma correcta.\n\n");
     }
