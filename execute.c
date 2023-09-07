@@ -175,7 +175,7 @@ static void execute_command_multipe(pipeline apipe)
     }
     else if (pid_first > 0)
     {
-
+        close(fd[WRITE_END]);
         // Elimina un comando del pipe y aumenta el contador de procesos hijo
         pipeline_pop_front(apipe);
 
@@ -188,7 +188,6 @@ static void execute_command_multipe(pipeline apipe)
         }
         if (pid_second == 0)
         {
-            close(fd[WRITE_END]);
 
             int res_dup = dup2(fd[READ_END], STDIN_FILENO);
             if (res_dup < 0)
